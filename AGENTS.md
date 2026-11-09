@@ -10,6 +10,11 @@ A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, br
 - `npm test` runs `node --test` against a fake Sode (`test/fake-sode.js`). Never print, log or commit a key: compare headers with `assert.ok`, since `assert.equal` prints both values on failure.
 - `npm run link-dev -- <developer modules folder>` symlinks the repo into Companion's developer folder. `npm run package` builds the side-loadable package.
 
+## Live stream
+
+- Real Sode (Beta 1.8.1) sends `/stream` deltas without `topic`, unlike `docs/api.md`. `onFrame` in `src/runtime.js` takes `topic ?? t` for non-snapshot frames, and the fake Sode omits `topic` unless `deltaTopic` is set.
+- While the stream is up, only protected and presets are polled, and tally is re-read every `rereadMs` (30 s) on its own injectable timer, so a missed delta heals. Down, tally and status poll every `pollMs`.
+
 ## Generator
 
 `npm run generate -- --host <host> --panel <id or short name>` reads the key from `SODE_KEY` (never an argument) and writes a Companion page file. `src/generator/export-format.js` is the only file that knows the page export shape, matched to `test/fixtures/speedtest-export.companionconfig` (a Companion 5.1.2 export). Generated pages carry no `look` feedback: Companion 5.1.2 needs `styleOverrides` for an advanced feedback and we do not know that format. Layer fields read the `key_<r>_<c>_bg` and `_fg` variables instead (`src/surface.js` publishes them from `styleOf`). The `look` feedback and presets stay for hand-built buttons. `src/colours.js` holds the key colours. Refresh the fixture with a new export if Companion's format changes.

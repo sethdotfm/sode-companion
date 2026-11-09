@@ -70,6 +70,7 @@ export function createRuntime({
   WebSocket: WS = globalThis.WebSocket,
   retryMs = 5000,
   pollMs = 2000,
+  rereadMs = 30_000,
   liveMs = 5000,
   grid = COMPANION_GRID,
   now = Date.now,
@@ -100,6 +101,8 @@ export function createRuntime({
   let noStatusScope = false;
   let sodeLost = false;
   let streamUp = false;
+  let rereadTimer = 0;
+  let tallyFrames = 0; // frames applied to tallyRaw; a re-read that overlaps one is stale
   let stream = null;
   let flash = null; // { cell, at }: the Cell whose press set the error shown
   let pressed = null; // the Cell of the press in progress
@@ -196,19 +199,44 @@ export function createRuntime({
     if (!stopped && !halted && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
   }
 
+  // Safety net for a delta the stream missed: while it is up, re-read the tally every rereadMs.
+  // Separate from poll() and the post-take refresh, so neither resets it.
+  function armReread() {
+    timers.clearTimeout(rereadTimer);
+    if (!streamUp || stopped || halted || rereadMs <= 0) return;
+    rereadTimer = timers.setTimeout(async () => {
+      const seen = tallyFrames;
+      try {
+        const fresh = await get('tally');
+        if (streamUp && tallyFrames === seen) {
+          tallyRaw = fresh;
+          rebuildEnv();
+          changed();
+        }
+      } catch (e) {
+        if (isRefusal(e)) return refuse(e.fail);
+      }
+      armReread();
+    }, rereadMs);
+  }
+
   function refuse(code) {
     halted = true;
     clearTimeout(pollTimer);
+    timers.clearTimeout(rereadTimer);
     clearTimeout(liveTimer);
     stream?.close();
     stopInstance?.();
     set(code);
   }
 
-  function onFrame({ t, topic, data }) {
+  // Real Sode (Beta 1.8.1) sends deltas without `topic`, unlike docs/api.md; then `t` names the topic.
+  function onFrame({ t, topic: given, data }) {
+    const topic = t === 'snapshot' ? given : (given ?? t);
     if (topic === 'names') names = namesFrom(data);
     else if (topic === 'tally') {
       tallyRaw = t === 'snapshot' ? data : mergeTally(tallyRaw, data);
+      tallyFrames++;
       rebuildEnv();
     } else if (topic === 'status') {
       routerUp = data.routerUp;
@@ -285,8 +313,12 @@ export function createRuntime({
           streamUp = true;
           sodeLost = false;
           syncOffline();
+          armReread();
         },
-        onDown: () => (streamUp = false),
+        onDown: () => {
+          streamUp = false;
+          timers.clearTimeout(rereadTimer);
+        },
         onFrame,
       });
       clearTimeout(pollTimer);
@@ -407,6 +439,7 @@ export function createRuntime({
       timing.stop();
       clearTimeout(timer);
       clearTimeout(pollTimer);
+      timers.clearTimeout(rereadTimer);
       stream?.close();
       hold.stop();
       stopInstance?.();
