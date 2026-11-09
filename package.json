@@ -1,0 +1,34 @@
+{
+  "name": "sode-panels",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "src/main.js",
+  "engines": {
+    "node": "^22.20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "lint": "eslint .",
+    "check": "companion-module-check",
+    "build": "companion-module-build",
+    "package": "companion-module-build",
+    "check-package": "sh scripts/check-package.sh",
+    "sync-model": "sh scripts/sync-model.sh",
+    "sync-icons": "sh scripts/sync-icons.sh",
+    "link-dev": "sh scripts/link-dev.sh",
+    "generate": "node scripts/generate.js"
+  },
+  "dependencies": {
+    "@companion-module/base": "^2.2.2",
+    "jpeg-js": "^0.4.4",
+    "omggif": "^1.0.10",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@companion-module/tools": "^3.2.0",
+    "globals": "^17.14.0",
+    "yaml": "^2.9.1"
+  },
+  "license": "MIT"
+}
