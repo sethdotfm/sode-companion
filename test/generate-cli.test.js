@@ -60,7 +60,7 @@ test('it reads the panel and writes an importable page file, never printing the 
   assert.equal(doc.type, 'page');
   assert.equal(doc.page.name, 'Test panel');
   assert.deepEqual(Object.keys(doc.page.controls), ['0', '1', '2']);
-  assert.deepEqual(Object.keys(doc.page.controls[2]), ['3', '4']);
+  assert.deepEqual(Object.keys(doc.page.controls[2]), ['0', '1', '2', '3', '4']);
   const [inst] = Object.values(doc.instances);
   assert.equal(inst.moduleId, 'sode-panels');
   assert.equal(inst.label, 'sode');
@@ -115,8 +115,18 @@ test('a panel that acts as a user is refused with no file', async () => {
   assert.ok(!existsSync(out));
 });
 
-test('a panel with no drawable Cells writes no file', async () => {
+test('a panel with unassigned Cells still writes a button for every square', async () => {
   const fake = await serve({ panel: panelOf([{ r: 1, c: 1, kind: 'source' }]) });
+  const out = join(dir, 'unassigned.companionconfig');
+  const res = await run(argsFor(fake, out));
+  await fake.close();
+  assert.equal(res.code, 0);
+  assert.match(res.stdout, /15 buttons/);
+  assert.equal(Object.values(parse(readFileSync(out, 'utf8')).page.controls).flatMap((row) => Object.keys(row)).length, 15);
+});
+
+test('a panel with no squares at all writes no file', async () => {
+  const fake = await serve({ panel: panelOf([], { rows: 0, cols: 0 }) });
   const out = join(dir, 'empty.companionconfig');
   const res = await run(argsFor(fake, out));
   await fake.close();

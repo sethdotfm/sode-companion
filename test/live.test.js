@@ -112,6 +112,10 @@ test('Sode going away shows Offline and ignores presses, then clears when it ret
   await until(() => rt.status().code === 'offline', 'Offline');
   assert.deepEqual(rt.look(...SRC1), { text: 'Offline', colour: 'offline', pulse: 0 });
   assert.equal(rt.look(...TAKE).text, 'Offline');
+  // Every key square of the panel shows Offline, blank ones too; squares beyond the panel stay blank.
+  assert.deepEqual(rt.look(2, 1), { text: 'Offline', colour: 'offline', pulse: 0 });
+  assert.deepEqual(rt.look(3, 5), { text: 'Offline', colour: 'offline', pulse: 0 });
+  assert.deepEqual(rt.look(4, 8), { text: '', colour: 'none', pulse: 0 });
   const before = rt.variables();
   await rt.press(...SRC2);
   await rt.press(...TAKE);

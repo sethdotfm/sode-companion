@@ -44,7 +44,7 @@ test('the look of a row and column is the name of the Cell there', async () => {
   assert.deepEqual(rt.status(), { code: 'ok', text: 'Panel Test panel' });
 });
 
-test('Cells without a Source, Destination or Preset are not drawn or listed', async () => {
+test('Cells without a Source, Destination or Preset and empty squares look blank and are not listed as presets', async () => {
   const fake = await startFakeSode({
     panel: panelOf([
       { r: 1, c: 1, kind: 'source' },
@@ -54,8 +54,19 @@ test('Cells without a Source, Destination or Preset are not drawn or listed', as
     ]),
   });
   const { rt } = await connect(fake);
-  for (const c of [1, 2, 3]) assert.deepEqual(rt.look(1, c), { text: '', colour: 'none', pulse: 0 });
+  for (const [r, c] of [
+    [1, 1],
+    [1, 2],
+    [1, 3],
+    [3, 5],
+  ]) {
+    assert.deepEqual(rt.look(r, c), { text: '', colour: 'blank', pulse: 0 });
+    await rt.press(r, c);
+  }
   assert.equal(rt.look(1, 4).text, 'CAM 1');
+  assert.equal(rt.variables().staged, 0);
+  assert.equal(rt.variables().key_3_5, '');
+  assert.equal(rt.variables().key_1_1, '');
   assert.deepEqual(
     rt.cells().map((x) => [x.r, x.c]),
     [[1, 4]],

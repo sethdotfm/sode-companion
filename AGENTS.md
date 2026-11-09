@@ -14,6 +14,8 @@ A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, br
 
 `npm run generate -- --host <host> --panel <id or short name>` reads the key from `SODE_KEY` (never an argument) and writes a Companion page file. `src/generator/export-format.js` is the only file that knows the page export shape, matched to `test/fixtures/speedtest-export.companionconfig` (a Companion 5.1.2 export). `src/colours.js` holds the key colours that both the look feedback and the generated backgrounds use. Refresh the fixture with a new export if Companion's format changes.
 
+The Generator emits a button for every key square of the panel inside the Companion grid, blank ones included (`keySquares` in `src/visible.js`, background `COLOURS.blank`), so a Cell added later in Sode's editor appears without regenerating. The module's Presets list still covers only drawn Cells (`visibleSquares`).
+
 ## Vendored panel model
 
 `src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js`, `panellink.js` and `panelupdate.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.

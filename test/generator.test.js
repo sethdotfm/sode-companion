@@ -23,7 +23,7 @@ const textOf = (doc, r, c) => layer(controlAt(doc, r, c), 'text0').text.value;
 const squareCount = (doc) => Object.values(doc.page.controls).flatMap((row) => Object.keys(row)).length;
 const REAL = parse(readFileSync(new URL('./fixtures/speedtest-export.companionconfig', import.meta.url), 'utf8'));
 
-// The 3 by 5 test panel with only (3,3) empty: 14 key squares, the last two belonging to one Take Cell.
+// The 3 by 5 test panel with only (3,3) blank: 15 key squares, the last two belonging to one Take Cell.
 const FULL = [
   ...[1, 2, 3, 4].map((c) => ({ r: 1, c, kind: 'source', n: c - 1 })),
   ...[1, 2, 3, 4].map((c) => ({ r: 2, c, kind: 'destination', n: c - 1 })),
@@ -44,14 +44,12 @@ test('a source cell becomes one button bound to its row and column', () => {
   const doc = generatePage(panelOf([{ r: 2, c: 3, kind: 'source', n: 0 }]), 'conn123');
   const btn = controlAt(doc, 2, 3);
   assert.ok(btn);
-  assert.deepEqual(Object.keys(doc.page.controls), ['1']);
-  assert.deepEqual(Object.keys(doc.page.controls[1]), ['2']);
   assert.deepEqual(btn.steps[0].action_sets.down[0].options, pressOf(2, 3, 'down'));
 });
 
 test('a full grid gives one button per key square and matches the golden page', () => {
   const doc = generatePage(panelOf(FULL), 'conn123', { label: 'sode' });
-  assert.equal(squareCount(doc), 14);
+  assert.equal(squareCount(doc), 15);
   const file = new URL('./golden/speedtest-page.json', import.meta.url);
   if (process.env.UPDATE_GOLDEN) writeFileSync(file, JSON.stringify(doc, null, 2) + '\n');
   assert.deepEqual(JSON.parse(JSON.stringify(doc)), JSON.parse(readFileSync(file, 'utf8')));
@@ -68,22 +66,52 @@ test('every generated action and feedback names the given connection', () => {
       seen++;
     }
   }
-  assert.equal(seen, 14);
+  assert.equal(seen, 15);
   assert.deepEqual(Object.keys(doc.instances), ['abc-999']);
 });
 
-test('Cells with no Source, Destination or Preset are left out', () => {
+test('Cells with no Source, Destination or Preset and squares with no Cell still get a bound blank button', () => {
   const doc = generatePage(
-    panelOf([
-      { r: 1, c: 1, kind: 'source' },
-      { r: 1, c: 2, kind: 'destination' },
-      { r: 1, c: 3, kind: 'preset', scope: 'everyone' },
-      { r: 1, c: 4, kind: 'source', n: 0 },
-    ]),
+    panelOf(
+      [
+        { r: 1, c: 1, kind: 'source' },
+        { r: 1, c: 2, kind: 'destination' },
+        { r: 1, c: 3, kind: 'preset', scope: 'everyone' },
+        { r: 1, c: 4, kind: 'source', n: 0 },
+      ],
+      { rows: 2, cols: 4 },
+    ),
     'c',
+    { label: 'sode' },
   );
-  assert.deepEqual(Object.keys(doc.page.controls), ['0']);
-  assert.deepEqual(Object.keys(doc.page.controls[0]), ['3']);
+  assert.equal(squareCount(doc), 8);
+  for (const [r, c] of [
+    [1, 1],
+    [1, 2],
+    [1, 3],
+    [2, 2],
+  ]) {
+    const btn = controlAt(doc, r, c);
+    assert.equal(layer(btn, 'box0').color.value, COLOURS.blank);
+    assert.equal(textOf(doc, r, c), `$(sode:key_${r}_${c})`);
+    assert.deepEqual(btn.steps[0].action_sets.down[0].options, pressOf(r, c, 'down'));
+    assert.deepEqual(btn.steps[0].action_sets.up[0].options, pressOf(r, c, 'up'));
+    assert.equal(btn.feedbacks[0].definitionId, 'look');
+  }
+  assert.equal(layer(controlAt(doc, 1, 4), 'box0').color.value, COLOURS.source);
+});
+
+test('a panel smaller than the Companion grid emits only its own squares', () => {
+  const doc = generatePage(panelOf([], { rows: 2, cols: 3 }), 'c');
+  assert.equal(squareCount(doc), 6);
+  assert.deepEqual(doc.page.gridSize, { minColumn: 0, maxColumn: 7, minRow: 0, maxRow: 3 });
+  assert.equal(controlAt(doc, 3, 1), undefined);
+  assert.equal(controlAt(doc, 1, 4), undefined);
+  assert.ok(controlAt(doc, 2, 3));
+});
+
+test('a panel with no squares emits no buttons', () => {
+  assert.equal(squareCount(generatePage(panelOf([], { rows: 0, cols: 0 }), 'c')), 0);
 });
 
 test('a panel larger than the Companion grid keeps the squares that fit and does not fail', () => {
@@ -99,7 +127,7 @@ test('a panel larger than the Companion grid keeps the squares that fit and does
 });
 
 test('a merged Cell has a button on every square and each presses its own row and column', () => {
-  const doc = generatePage(panelOf([{ r: 1, c: 1, kind: 'take', rs: 2, cs: 2 }]), 'c', { label: 'sode' });
+  const doc = generatePage(panelOf([{ r: 1, c: 1, kind: 'take', rs: 2, cs: 2 }], { rows: 2, cols: 2 }), 'c', { label: 'sode' });
   assert.equal(squareCount(doc), 4);
   for (const [r, c] of [
     [1, 1],
@@ -115,7 +143,10 @@ test('a merged Cell has a button on every square and each presses its own row an
 
 test('a merged Cell cut by the grid edge keeps the squares inside it', () => {
   const doc = generatePage(panelOf([{ r: 1, c: 2, kind: 'take', cs: 2 }], { rows: 1, cols: 3 }), 'c', { grid: { rows: 1, cols: 2 } });
-  assert.deepEqual(Object.keys(doc.page.controls[0]), ['1']);
+  // Panel 1 by 3 in a 1 by 2 grid: the Take's second square at column 3 is cut, column 1 is blank.
+  assert.deepEqual(Object.keys(doc.page.controls[0]), ['0', '1']);
+  assert.equal(layer(controlAt(doc, 1, 1), 'box0').color.value, COLOURS.blank);
+  assert.equal(layer(controlAt(doc, 1, 2), 'box0').color.value, COLOURS.take);
 });
 
 // Leaves become their type; the {value, isExpression} wrapper stays so a bare value where Companion wraps one fails.
@@ -213,6 +244,7 @@ test('default backgrounds are the module colours for each Cell kind', () => {
   assert.equal(bg(1, 5), COLOURS.clear);
   assert.equal(bg(2, 5), COLOURS.current);
   assert.equal(bg(3, 4), COLOURS.take);
+  assert.equal(bg(3, 3), COLOURS.blank);
 });
 
 test('the core imports nothing that needs Node', () => {
