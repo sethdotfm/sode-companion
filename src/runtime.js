@@ -8,6 +8,7 @@ import { COMPANION_GRID, visibleSquares, squareVariable } from './visible.js';
 import { createLivePanel } from './live-panel.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
+import { withPrefix } from './sode-key.js';
 
 // namesFrom has no label for a Take cell.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -48,12 +49,6 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
-
-// Links show the secret without Sode's prefix.
-const withPrefix = (raw) => {
-  const key = String(raw || '').trim();
-  return key && !key.startsWith('sode_') ? `sode_${key}` : key;
-};
 
 export function createRuntime({ host, port, tls = false, panel: panelRef, key: rawKey, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, timers = { setTimeout, clearTimeout }, log = () => {} }) {
   const key = withPrefix(rawKey);
