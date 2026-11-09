@@ -1,5 +1,6 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
-import { cellsIn, namesFrom } from './vendor/panelrules.js';
+import { cellsIn, namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
+import * as model from './vendor/panelmodel.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -28,8 +29,12 @@ class Refused extends Error {
 }
 
 const NO_PANEL = { rows: 0, cols: 0 };
+const NONE = { text: '', colour: 'none', pulse: 0 };
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, log = () => {} }) {
+// Protected and presets change rarely, so they are read on every Nth tally poll.
+const SLOW_EVERY = 5;
+
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -37,12 +42,41 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let drawn = [];
   let stopped = false;
   let timer = 0;
+  let pollTimer = 0;
+  let polls = 0;
+  let st = model.createState();
+  let env = envFrom({}, {});
   const listeners = [];
+  const changed = () => listeners.forEach((fn) => fn());
 
   const set = (code, text = FAILS[code]) => {
     status = { code, text };
-    listeners.forEach((fn) => fn());
+    changed();
   };
+
+  // Settings the panel does not grant (scope 403) read as empty rather than failing the panel.
+  const soft = (path) => get(path).catch(() => ({}));
+
+  // Protected and presets are read only when slow is set; the last read stands between.
+  let slowReads = [{}, {}];
+  async function readRouter(slow) {
+    const tally = await get('tally');
+    if (slow) slowReads = await Promise.all([soft('protected'), soft('presets')]);
+    env = envFrom(tally, slowReads[0], slowReads[1], panel.rights);
+    st = model.applyTally(st, env);
+  }
+
+  async function poll() {
+    if (stopped) return;
+    try {
+      await readRouter(++polls % SLOW_EVERY === 0);
+      changed();
+    } catch (e) {
+      // Offline handling belongs to its own slice; a lost poll keeps the last state.
+      log(`poll failed: ${e.fail || 'error'}`);
+    }
+    if (!stopped && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
+  }
 
   const get = async (path) => {
     const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
@@ -63,7 +97,12 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       panel = p;
       names = namesFrom(nm);
       drawn = cellsIn(p).sort((a, b) => a.r - b.r || a.c - b.c);
+      st = model.createState(p.settings);
+      await readRouter(true);
+      if (stopped) return;
       set('ok', `Panel ${p.name}`);
+      clearTimeout(pollTimer);
+      if (pollMs > 0) pollTimer = setTimeout(poll, pollMs);
     } catch (e) {
       if (stopped) return;
       // A refusal ends the attempts: only a changed key, list or panel helps. A lost connection is retried.
@@ -74,6 +113,60 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     }
   }
 
+  // Colour is the Cell kind, or kind-state while a view, a stage or an armed Take changes it.
+  function cellLook(cell) {
+    const text = labelOf(cell, names);
+    const t = now();
+    switch (cell.kind) {
+      case 'source': {
+        const s = model.sourceState(st, cell.n, env);
+        return { text, colour: s === 'idle' ? 'source' : `source-${s}`, pulse: s === 'pending' ? 1 : 0 };
+      }
+      case 'destination': {
+        const s = model.destinationState(st, cell.n);
+        if (s === 'staged') return { text: `${text}\n${names.source(st.staged.find((x) => x.dst === cell.n).src)}`, colour: 'destination-staged', pulse: 1 };
+        return { text, colour: s === 'idle' ? 'destination' : `destination-${s}`, pulse: 0 };
+      }
+      case 'take': {
+        const armed = model.armed(st, env);
+        return { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
+      }
+      case 'current': {
+        if (!st.view) return { text: cell.caption || 'Currently', colour: 'current', pulse: 0 };
+        const cur = model.currentSource(env, st);
+        return { text: `${currentLabel(cell, names.destination(st.view.dst))}\n${cur >= 0 ? names.source(cur) : 'None'}`, colour: 'current', pulse: 0 };
+      }
+      default:
+        return { text, colour: cell.kind, pulse: 0 };
+    }
+  }
+
+  const cellAt = (r, c) => drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
+
+  async function sendTake() {
+    const started = model.startTake(st, env, now());
+    if (!started) return;
+    st = started.state;
+    changed();
+    try {
+      const res = await doFetch(`${base}/takes`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ routes: started.routes }),
+      });
+      log(`POST takes ${res.status}`);
+      const body = await res.json().catch(() => ({}));
+      st = res.ok ? model.finishTake(st, body, now()) : model.failTake(st, body?.error?.code || 'refused', body?.error?.message || '', now());
+    } catch {
+      st = model.failTake(st, 'unreachable', 'Sode did not answer the take', now());
+    }
+    changed();
+    if (!stopped) poll1();
+  }
+
+  // One extra tally read after a take, so the keys show what the router did without waiting for the next tick.
+  const poll1 = () => readRouter(false).then(changed, () => {});
+
   return {
     async start() {
       if (!host || !port || !panelRef || !key) return set('bad-config');
@@ -83,16 +176,54 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     stop() {
       stopped = true;
       clearTimeout(timer);
+      clearTimeout(pollTimer);
+    },
+    release() {},
+    async press(r, c) {
+      const cell = cellAt(r, c);
+      if (!cell || status.code !== 'ok') return;
+      const before = st;
+      switch (cell.kind) {
+        case 'destination':
+          st = model.pressDestination(st, cell, env, now());
+          break;
+        case 'source':
+          st = model.pressSource(st, cell, env, now());
+          break;
+        case 'clear':
+          st = model.pressClear(st, now());
+          break;
+        case 'take': {
+          const g = model.guardDown(st, now());
+          st = g.state;
+          if (g.go) await sendTake();
+          break;
+        }
+        default:
+          return;
+      }
+      if (st !== before) changed();
+    },
+    variables() {
+      const view = st.view;
+      const cur = model.currentSource(env, st);
+      return {
+        viewed: view ? names.destination(view.dst) : '',
+        current: cur >= 0 ? names.source(cur) : '',
+        staged: st.staged.length,
+        error: errorText(model.errorOf(st, now()), names),
+      };
     },
     onChange: (fn) => listeners.push(fn),
     status: () => status,
     grid: () => ({ rows: panel.rows, cols: panel.cols }),
     cells: () => drawn,
     look(r, c) {
-      const cell = drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
-      if (!cell) return { text: '', colour: 'none', pulse: 0 };
+      const cell = cellAt(r, c);
+      if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
-      return { text: root ? labelOf(cell, names) : '', colour: cell.kind, pulse: 0 };
+      const { colour, pulse, text } = cellLook(cell);
+      return { text: root ? text : '', colour, pulse };
     },
   };
 }
