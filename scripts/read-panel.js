@@ -31,6 +31,7 @@ export async function readPanel({ host, port, tls, panel, key, fetch: doFetch = 
     if (res.status === 404) throw new ReadFailed('Sode has no panel with this id or short name that this key may use.');
     throw new ReadFailed(`Sode answered with status ${res.status}, not a panel.`);
   }
-  if (body.acts !== 'api') throw new ReadFailed('This panel acts as a user. Switch it to act as its own API client in the Sode editor.');
+  if (body.acts !== 'api' && body.acts !== 'both')
+    throw new ReadFailed('This panel acts as a user. Switch it to act as its own API client in the Sode editor.');
   return body;
 }

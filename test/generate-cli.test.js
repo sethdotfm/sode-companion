@@ -115,6 +115,15 @@ test('a panel that acts as a user is refused with no file', async () => {
   assert.ok(!existsSync(out));
 });
 
+test('a panel that acts as both an API client and a user still writes a page', async () => {
+  const fake = await serve({ panel: panelOf(CELLS, { acts: 'both' }) });
+  const out = join(dir, 'both.companionconfig');
+  const res = await run(argsFor(fake, out));
+  await fake.close();
+  assert.equal(res.code, 0);
+  assert.ok(existsSync(out));
+});
+
 test('a panel with unassigned Cells still writes a button for every square', async () => {
   const fake = await serve({ panel: panelOf([{ r: 1, c: 1, kind: 'source' }]) });
   const out = join(dir, 'unassigned.companionconfig');

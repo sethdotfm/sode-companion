@@ -363,7 +363,7 @@ export function createRuntime({
     clearTimeout(timer);
     try {
       const p = await get(`panels/${encodeURIComponent(panelRef)}`);
-      if (p.acts !== 'api') throw new Refused('session-mode');
+      if (p.acts !== 'api' && p.acts !== 'both') throw new Refused('session-mode');
       const fetchedNames = await get('names');
       if (stopped) return;
       panel = p;

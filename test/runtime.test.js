@@ -101,6 +101,11 @@ test('cells list in grid order and a merged Cell shows its text on the root squa
   assert.equal(rt.look(2, 1).text, 'Opening');
 });
 
+test('a panel that acts as both an API client and a user connects', async () => {
+  const { rt } = await connect(await startFakeSode({ panel: panelOf([{ r: 1, c: 1, kind: 'source', n: 0 }], { acts: 'both' }) }));
+  assert.equal(rt.status().code, 'ok');
+});
+
 const failure = async (fake) => {
   const { rt } = await connect(fake);
   return rt.status();
