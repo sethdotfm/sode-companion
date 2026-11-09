@@ -1,6 +1,7 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
 import { cellsIn, namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
+import { openStream, mergeTally } from './live.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -14,6 +15,7 @@ const FAILS = {
   'panel-not-found': 'Sode has no panel with this id or short name that this key may use.',
   'api-off': 'The API is switched off in Sode. Ask an administrator to turn it on.',
   unreachable: 'Sode did not answer. Check the host, port and TLS choice.',
+  offline: 'Sode or the router is not answering. Every key shows Offline until it does.',
   'bad-config': 'Set the host, port, panel and key in the connection settings.',
 };
 
@@ -22,9 +24,11 @@ export const FAILURE_CODES = Object.keys(FAILS);
 const REFUSALS = { invalid_key: 'key-refused', key_required: 'key-refused', key_expired: 'key-expired', network_not_allowed: 'network-refused', api_off: 'api-off' };
 
 class Refused extends Error {
-  constructor(code) {
+  constructor(code, http = 0, api = '') {
     super(code);
     this.fail = code;
+    this.http = http;
+    this.api = api;
   }
 }
 
@@ -34,7 +38,7 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -46,6 +50,13 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let polls = 0;
   let st = model.createState();
   let env = envFrom({}, {});
+  let tallyRaw = {};
+  // true or false from the status read, null when the key has no status scope: the link is unknown, not down.
+  let routerUp = null;
+  let noStatusScope = false;
+  let sodeLost = false;
+  let streamUp = false;
+  let stream = null;
   const listeners = [];
   const changed = () => listeners.forEach((fn) => fn());
 
@@ -59,23 +70,74 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
 
   // Protected and presets are read only when slow is set; the last read stands between.
   let slowReads = [{}, {}];
-  async function readRouter(slow) {
-    const tally = await get('tally');
+  async function readRouter(slow, withTally = true) {
+    if (withTally) tallyRaw = await get('tally');
     if (slow) slowReads = await Promise.all([soft('protected'), soft('presets')]);
-    env = envFrom(tally, slowReads[0], slowReads[1], panel.rights);
+    rebuildEnv();
+  }
+
+  function rebuildEnv() {
+    env = envFrom(tallyRaw, slowReads[0], slowReads[1], panel.rights);
     st = model.applyTally(st, env);
   }
 
+  async function readStatus() {
+    if (noStatusScope) return;
+    try {
+      routerUp = (await get('status')).routerUp;
+    } catch (e) {
+      if (!(e.http === 403 && e.api === 'scope')) throw e;
+      noStatusScope = true;
+      routerUp = null;
+    }
+  }
+
+  // Offline is Sode not answering or the router down; either clears by itself.
+  function settle() {
+    const text = sodeLost ? 'Sode did not answer. Every key shows Offline until it does.' : routerUp === false ? 'Sode lost contact with the router. Every key shows Offline until it is back.' : '';
+    if (text && (status.code !== 'offline' || status.text !== text)) set('offline', text);
+    else if (!text && status.code === 'offline') set('ok', `Panel ${panel.name}`);
+  }
+
+  // While the stream is up only the slow reads are polled; down, tally and status are polled every pollMs.
   async function poll() {
     if (stopped) return;
     try {
-      await readRouter(++polls % SLOW_EVERY === 0);
+      const slow = ++polls % SLOW_EVERY === 0;
+      if (streamUp) await readRouter(slow, false);
+      else {
+        await readRouter(slow);
+        await readStatus();
+      }
+      sodeLost = false;
+      settle();
       changed();
     } catch (e) {
-      // Offline handling belongs to its own slice; a lost poll keeps the last state.
+      // A refusal ends all attempts; anything else is a lost Sode.
+      if (e.fail && e.fail !== 'unreachable') return refuse(e.fail);
       log(`poll failed: ${e.fail || 'error'}`);
+      sodeLost = true;
+      settle();
     }
     if (!stopped && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
+  }
+
+  function refuse(code) {
+    clearTimeout(pollTimer);
+    stream?.close();
+    set(code);
+  }
+
+  function onFrame({ t, topic, data }) {
+    if (topic === 'names') names = namesFrom(data);
+    else if (topic === 'tally') {
+      tallyRaw = t === 'snapshot' ? data : mergeTally(tallyRaw, data);
+      rebuildEnv();
+    } else if (topic === 'status') {
+      routerUp = data.routerUp;
+      settle();
+    } else return;
+    changed();
   }
 
   const get = async (path) => {
@@ -84,7 +146,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     const body = await res.json().catch(() => ({}));
     if (res.ok) return body;
     const code = REFUSALS[body?.error?.code] || (res.status === 404 ? 'panel-not-found' : 'unreachable');
-    throw new Refused(code);
+    throw new Refused(code, res.status, body?.error?.code);
   };
 
   async function load() {
@@ -99,8 +161,25 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       drawn = cellsIn(p).sort((a, b) => a.r - b.r || a.c - b.c);
       st = model.createState(p.settings);
       await readRouter(true);
+      await readStatus();
       if (stopped) return;
+      sodeLost = false;
       set('ok', `Panel ${p.name}`);
+      settle();
+      stream ||= openStream({
+        base,
+        key,
+        topics: ['names', 'tally', ...(noStatusScope ? [] : ['status'])],
+        WebSocket: WS,
+        retryMs,
+        onUp: () => {
+          streamUp = true;
+          sodeLost = false;
+          settle();
+        },
+        onDown: () => (streamUp = false),
+        onFrame,
+      });
       clearTimeout(pollTimer);
       if (pollMs > 0) pollTimer = setTimeout(poll, pollMs);
     } catch (e) {
@@ -177,6 +256,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       stopped = true;
       clearTimeout(timer);
       clearTimeout(pollTimer);
+      stream?.close();
     },
     release() {},
     async press(r, c) {
@@ -222,6 +302,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       const cell = cellAt(r, c);
       if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
+      if (status.code === 'offline') return { text: root ? 'Offline' : '', colour: 'offline', pulse: 0 };
       const { colour, pulse, text } = cellLook(cell);
       return { text: root ? text : '', colour, pulse };
     },

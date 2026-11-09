@@ -11,6 +11,7 @@ const MAP = {
   'panel-not-found': InstanceStatus.BadConfig,
   'bad-config': InstanceStatus.BadConfig,
   'api-off': InstanceStatus.ConnectionFailure,
+  offline: InstanceStatus.ConnectionFailure,
   unreachable: InstanceStatus.ConnectionFailure,
 };
 
