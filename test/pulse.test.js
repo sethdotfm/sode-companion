@@ -41,8 +41,20 @@ async function connect(over = {}, panelExtra = {}) {
     protected: over.protected,
     takeReply: over.takeReply,
   });
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 0, now: clock.now, timers: clock.timers });
-  open.push(() => rt.stop(), () => fake.close());
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    panel: 'speedtest',
+    key: KEY,
+    device: 'Deck',
+    pollMs: 0,
+    now: clock.now,
+    timers: clock.timers,
+  });
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return { rt, fake, clock };
 }
@@ -100,7 +112,10 @@ test('a pulse step notifies listeners so the surface redraws', async () => {
 
 test('a Result word shows on each destination for 1.5 seconds and then goes', async () => {
   const { rt, clock } = await connect({
-    takeReply: (body) => ({ status: 200, body: { ok: true, results: body.routes.map((r) => ({ ...r, result: r.dst === 0 ? 'connected' : 'failed', ok: r.dst === 0 })) } }),
+    takeReply: (body) => ({
+      status: 200,
+      body: { ok: true, results: body.routes.map((r) => ({ ...r, result: r.dst === 0 ? 'connected' : 'failed', ok: r.dst === 0 })) },
+    }),
   });
   await press(rt, DST_A);
   await press(rt, SRC2);

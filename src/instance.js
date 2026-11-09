@@ -18,7 +18,12 @@ export function startInstance({ base, panelId, key, device, fetch: doFetch, retr
   let retry = 0;
 
   const keepalive = () =>
-    doFetch(url, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ device }), signal: abort.signal })
+    doFetch(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device }),
+      signal: abort.signal,
+    })
       .then((res) => log(`POST instances ${res.status}`))
       .catch(() => {});
 
@@ -27,7 +32,7 @@ export function startInstance({ base, panelId, key, device, fetch: doFetch, retr
       const res = await doFetch(`${url}/stream?device=${encodeURIComponent(device)}`, { headers, signal: abort.signal });
       log(`GET instances/stream ${res.status}`);
       // The held body only matters for how long it stays open.
-      if (res.ok && res.body) for await (const _ of res.body);
+      if (res.ok && res.body) for await (const _chunk of res.body);
     } catch {
       // Aborted by stop, or the connection dropped: reopen below.
     }

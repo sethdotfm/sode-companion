@@ -9,9 +9,12 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\"",
+    "lint": "eslint .",
+    "check": "companion-module-check",
+    "build": "companion-module-build",
+    "package": "companion-module-build",
     "sync-model": "sh scripts/sync-model.sh",
     "link-dev": "sh scripts/link-dev.sh",
-    "package": "companion-module-build",
     "generate": "node scripts/generate.js"
   },
   "dependencies": {
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@companion-module/tools": "^3.2.0",
+    "globals": "^17.14.0",
     "yaml": "^2.9.1"
   },
   "license": "MIT"

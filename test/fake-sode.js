@@ -68,7 +68,12 @@ export async function startFakeSode(opts = {}) {
     streamEnabled: !!opts.stream,
     upgrades: [],
     sockets: new Set(),
-    takeReply: opts.takeReply || ((body) => ({ status: 200, body: { ok: true, results: body.routes.map((r, i) => ({ id: i + 1, ...r, result: 'connected', ok: true })) } })),
+    takeReply:
+      opts.takeReply ||
+      ((body) => ({
+        status: 200,
+        body: { ok: true, results: body.routes.map((r, i) => ({ id: i + 1, ...r, result: 'connected', ok: true })) },
+      })),
   };
   const server = http.createServer((req, res) => {
     // A client that aborts mid-request (a stopped runtime) must not crash the test process.
@@ -142,12 +147,16 @@ export async function startFakeSode(opts = {}) {
     fake.upgrades.push({ path: url.pathname, auth: req.headers.authorization || '', url: req.url, topics });
     const deny = (status, code) => {
       const body = JSON.stringify({ error: { code, message: code } });
-      sock.end(`HTTP/1.1 ${status} X\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(body)}\r\nConnection: close\r\n\r\n${body}`);
+      sock.end(
+        `HTTP/1.1 ${status} X\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(body)}\r\nConnection: close\r\n\r\n${body}`,
+      );
     };
     if (url.pathname !== '/api/v1/stream' || !fake.streamEnabled) return deny(404, 'not_found');
     if (fake.refuse) return deny(fake.refuse.status, fake.refuse.code);
     if (topics.includes('status') && fake.noStatusScope) return deny(403, 'scope');
-    const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + WS_GUID).digest('base64');
+    const accept = createHash('sha1')
+      .update(req.headers['sec-websocket-key'] + WS_GUID)
+      .digest('base64');
     sock.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
     fake.sockets.add(sock);
     sock.on('close', () => fake.sockets.delete(sock));

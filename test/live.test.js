@@ -40,8 +40,20 @@ async function pollsStopped(fake) {
 
 async function connect(opts = {}, over = {}) {
   const fake = opts.fake || (await startFakeSode({ panel: panelOf(CELLS), tally: tallyFrom(0), stream: true, ...opts }));
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 15, retryMs: 20, ...over });
-  open.push(() => rt.stop(), () => fake.close());
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    panel: 'speedtest',
+    key: KEY,
+    device: 'Deck',
+    pollMs: 15,
+    retryMs: 20,
+    ...over,
+  });
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   if (fake.streamEnabled) {
     await until(() => fake.sockets.size > 0, 'the stream to open');

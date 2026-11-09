@@ -17,8 +17,19 @@ const cells = [{ r: 1, c: 1, kind: 'source', n: 0 }];
 const instanceUp = (fake) => until(() => fake.keepalives.length >= 1 && fake.streams.length >= 1, 'the instance to come up');
 async function connect(fake, over = {}) {
   mock.timers.enable({ apis: ['setInterval'] });
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', label: 'Studio deck', ...over });
-  open.push(() => rt.stop(), () => fake.close());
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    panel: 'speedtest',
+    key: KEY,
+    device: 'Deck',
+    label: 'Studio deck',
+    ...over,
+  });
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return rt;
 }

@@ -10,8 +10,20 @@ afterEach(async () => {
 
 // liveMs is real time between panel reads.
 async function connect(fake, over = {}) {
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 0, liveMs: 15, ...over });
-  open.push(() => rt.stop(), () => fake.close());
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    panel: 'speedtest',
+    key: KEY,
+    device: 'Deck',
+    pollMs: 0,
+    liveMs: 15,
+    ...over,
+  });
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return { rt };
 }
@@ -107,7 +119,12 @@ test('a merged Take shows its text on the Root square only and presses from any 
   await rt.press(1, 2);
   await rt.press(1, 1);
   assert.equal(rt.look(2, 4).text, 'Take');
-  for (const [r, c] of [[2, 5], [3, 4], [3, 5]]) assert.deepEqual(rt.look(r, c), { text: '', colour: 'take-armed', pulse: 1 });
+  for (const [r, c] of [
+    [2, 5],
+    [3, 4],
+    [3, 5],
+  ])
+    assert.deepEqual(rt.look(r, c), { text: '', colour: 'take-armed', pulse: 1 });
   await rt.press(3, 5);
   assert.equal(fake.takes.length, 1);
 });
@@ -126,9 +143,20 @@ test('a panel larger than the Companion grid uses the squares from the top left,
   });
   const { rt } = await connect(fake);
   assert.equal(rt.status().code, 'ok');
-  assert.deepEqual(rt.cells().map((x) => [x.r, x.c]), [[1, 1], [4, 8]]);
+  assert.deepEqual(
+    rt.cells().map((x) => [x.r, x.c]),
+    [
+      [1, 1],
+      [4, 8],
+    ],
+  );
   assert.equal(rt.look(4, 8).text, 'Take');
-  for (const [r, c] of [[5, 1], [1, 9], [5, 8], [4, 9]]) {
+  for (const [r, c] of [
+    [5, 1],
+    [1, 9],
+    [5, 8],
+    [4, 9],
+  ]) {
     assert.deepEqual(rt.look(r, c), { text: '', colour: 'none', pulse: 0 });
     await rt.press(r, c);
   }

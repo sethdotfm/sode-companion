@@ -10,8 +10,20 @@ afterEach(async () => {
 
 async function connect(fake, over = {}) {
   const log = [];
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, tls: false, panel: 'speedtest', key: KEY, device: 'Deck', log: (m) => log.push(m), ...over });
-  open.push(() => rt.stop(), () => fake.close());
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    tls: false,
+    panel: 'speedtest',
+    key: KEY,
+    device: 'Deck',
+    log: (m) => log.push(m),
+    ...over,
+  });
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return { rt, log };
 }
@@ -119,8 +131,14 @@ test('the key goes out as a Bearer header and shows up nowhere else', async () =
       const { rt, log } = await connect(fake);
       texts.push(rt.status().text, JSON.stringify(rt.look(1, 1)));
       logs.push(...log);
-      assert.ok(fake.requests.every((q) => q.auth === `Bearer ${KEY}`), 'auth header missing');
-      assert.ok(fake.requests.every((q) => !q.url.includes(KEY)), 'key sent in the URL');
+      assert.ok(
+        fake.requests.every((q) => q.auth === `Bearer ${KEY}`),
+        'auth header missing',
+      );
+      assert.ok(
+        fake.requests.every((q) => !q.url.includes(KEY)),
+        'key sent in the URL',
+      );
     }
   } finally {
     spies.forEach((undo) => undo());
@@ -144,7 +162,10 @@ test('a refused key stops the runtime from asking again', async () => {
 });
 
 test('a failed panel read draws nothing and keeps the failure status', async () => {
-  const fake = await startFakeSode({ panel: panelOf([{ r: 1, c: 1, kind: 'source', n: 0 }]), refuse: { status: 403, code: 'network_not_allowed' } });
+  const fake = await startFakeSode({
+    panel: panelOf([{ r: 1, c: 1, kind: 'source', n: 0 }]),
+    refuse: { status: 403, code: 'network_not_allowed' },
+  });
   const { rt } = await connect(fake);
   assert.deepEqual(rt.cells(), []);
   assert.deepEqual(rt.look(1, 1), { text: '', colour: 'none', pulse: 0 });
@@ -155,7 +176,10 @@ test('status is Connecting until the panel is read, and every change is announce
   const fake = await startFakeSode({ panel: panelOf([]) });
   const seen = [];
   const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck' });
-  open.push(() => rt.stop(), () => fake.close());
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   rt.onChange(() => seen.push(rt.status().code));
   assert.equal(rt.status().code, 'connecting');
   await rt.start();

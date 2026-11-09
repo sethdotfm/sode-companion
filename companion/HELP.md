@@ -1,0 +1,33 @@
+# Sode panels
+
+Runs one Sode panel on Companion buttons. Pressing a button does what pressing that Cell does in the Sode web panel, and the buttons show the same names, colours and router state.
+
+## Setup, in order
+
+1. **Turn on the API in Sode.** The API is off until an administrator enables it in Sode's settings.
+2. **Make the panel act as its own API client.** In the Sode panel editor, switch the panel from acting as a user to acting as its own API client. A panel that acts as a user is refused, and the connection status says so.
+3. **Make an instance key.** Create it on the panel's API client. Sode shows the key once, so copy it then. Sode links show the key without the `sode_` prefix. The module adds the prefix when it is missing, so paste either form.
+4. **Add the Connection in Companion.** Add a "Sode panels" connection and fill in the Sode host, port, TLS choice, the panel's id or short name, the instance key and, if you want a name other than the connection's label, the device name. Sode shows the device name as the instance name. The status turns Ok once the panel loads.
+5. **Run the Generator and import the page.** On a computer that can reach Sode, in a checkout of this repository, run `SODE_KEY=<key> npm run generate -- --host <host> --panel <panel> --label <connection label>`. It writes a `.companionconfig` file. Import that file in Companion as a page. Every button is already bound to the connection.
+
+Other options are `--port` (default 8080), `--tls`, `--connection-id` and `--out`. The key goes in the `SODE_KEY` environment variable and is never accepted as an argument.
+
+## Key hygiene
+
+Never paste a key into chat or commit it. The Connection holds it as a Companion secret, so it stays out of plain config exports. If a key leaks, revoke it in Sode and make a new one.
+
+## What shows
+
+- Pressing a Destination key views that destination. The viewed destination's current source is solid green.
+- Pressing a Source or Preset key stages it. Staged Destination keys pulse orange and show the staged source.
+- The Take key lights once something valid is staged. Take applies every staged change at once. Clear drops the view and the staged changes.
+- Every key shows Offline and ignores presses while Sode or the router is unreachable. The connection status then reads Connection Failure.
+
+Variables hold the viewed destination, its current source, the staged count, the last error, the router status and the text of each key square. Presets list every Cell of the panel in grid order, for building buttons by hand.
+
+## Known limits
+
+- One panel per connection. Use two connections, with two device names, for two independent surfaces.
+- No paging. A panel larger than the Companion grid shows the key squares that fall inside it from the top left, and ignores the rest.
+- Needs Companion 5.1 or later.
+- Only a panel's API client instance key works. User keys and panels that act as a user are not supported.

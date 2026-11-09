@@ -30,7 +30,10 @@ export function createTiming({ timers, now, read, write, notify }) {
     if (st.error) at.push(st.error.at + ERROR_MS);
     if (!st.busy && (st.view || st.staged.length)) at.push(st.touchedAt + IDLE_MS);
     // The model shows a value through its limit inclusive, so it goes 1 ms later.
-    return at.map((t) => t + 1).filter((t) => t > now()).sort((a, b) => a - b)[0];
+    return at
+      .map((t) => t + 1)
+      .filter((t) => t > now())
+      .sort((a, b) => a - b)[0];
   }
 
   function wake() {

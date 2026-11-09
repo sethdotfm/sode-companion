@@ -29,10 +29,22 @@ const CELLS = [
 // The key reaches the command only through the environment; the child sees nothing else of ours.
 const run = (args, env = { SODE_KEY: KEY }) =>
   new Promise((done) => {
-    execFile(process.execPath, [SCRIPT, ...args], { env: { PATH: process.env.PATH, ...env } }, (error, stdout, stderr) => done({ code: error ? error.code : 0, stdout, stderr }));
+    execFile(process.execPath, [SCRIPT, ...args], { env: { PATH: process.env.PATH, ...env } }, (error, stdout, stderr) =>
+      done({ code: error ? error.code : 0, stdout, stderr }),
+    );
   });
 
-const argsFor = (fake, out, extra = []) => ['--host', '127.0.0.1', '--port', String(fake.port), '--panel', 'speedtest', '--out', out, ...extra];
+const argsFor = (fake, out, extra = []) => [
+  '--host',
+  '127.0.0.1',
+  '--port',
+  String(fake.port),
+  '--panel',
+  'speedtest',
+  '--out',
+  out,
+  ...extra,
+];
 const bare = KEY.slice('sode_'.length);
 // assert.ok shows no operands on failure, so a leaked key is not printed by the test either.
 const noKey = (text) => assert.ok(!text.includes(bare));

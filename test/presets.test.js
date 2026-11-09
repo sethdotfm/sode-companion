@@ -50,7 +50,10 @@ async function connect({ settings = {}, protectedDsts, presetsRefuse, takeReply 
   });
   fake.presetsRefuse = presetsRefuse;
   const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, pollMs: 15, now: () => clock.t });
-  open.push(() => rt.stop(), () => fake.close());
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return { rt, fake, clock };
 }
@@ -129,7 +132,10 @@ test('in Instant mode a failed route stays staged and the next press replaces it
   let n = 0;
   const { rt, fake } = await connect({
     settings: { mode: 'instant' },
-    takeReply: (body) => ({ status: 200, body: { ok: true, results: body.routes.map((r) => ({ ...r, result: ++n === 1 ? 'failed' : 'connected', ok: n > 1 })) } }),
+    takeReply: (body) => ({
+      status: 200,
+      body: { ok: true, results: body.routes.map((r) => ({ ...r, result: ++n === 1 ? 'failed' : 'connected', ok: n > 1 })) },
+    }),
   });
   await press(rt, DST_A);
   await press(rt, SRC2);
