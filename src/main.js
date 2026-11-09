@@ -107,7 +107,8 @@ class SodePanelsInstance extends InstanceBase {
       tls: !!config.tls,
       panel: config.panel,
       key: secrets?.key,
-      device: (config.device || this.label).slice(0, 40),
+      device: config.device,
+      label: this.label,
       // Debug lines only: the runtime never logs a key.
       log: (line) => this.log('debug', line),
     });

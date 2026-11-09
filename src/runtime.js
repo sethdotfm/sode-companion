@@ -2,6 +2,7 @@
 import { cellsIn, namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
 import { createHold } from './hold.js';
+import { deviceName, startInstance } from './instance.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -16,6 +17,7 @@ const FAILS = {
   'api-off': 'The API is switched off in Sode. Ask an administrator to turn it on.',
   unreachable: 'Sode did not answer. Check the host, port and TLS choice.',
   'bad-config': 'Set the host, port, panel and key in the connection settings.',
+  'bad-device': 'The device name is over 40 characters. Shorten it, or the connection label when the device name is blank.',
 };
 
 export const FAILURE_CODES = Object.keys(FAILS);
@@ -36,7 +38,7 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, device = '', label = '', fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -44,6 +46,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let drawn = [];
   let stopped = false;
   let timer = 0;
+  let stopInstance = null;
+  const name = deviceName(device, label);
   let pollTimer = 0;
   let polls = 0;
   let st = model.createState();
@@ -109,6 +113,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       st = model.createState(p.settings);
       await readRouter(true);
       if (stopped) return;
+      stopInstance ??= startInstance({ base, panelId: p.id, key, device: name, fetch: doFetch, retryMs, log });
       set('ok', `Panel ${p.name}`);
       clearTimeout(pollTimer);
       if (pollMs > 0) pollTimer = setTimeout(poll, pollMs);
@@ -199,6 +204,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   return {
     async start() {
       if (!host || !port || !panelRef || !key) return set('bad-config');
+      if (name === null) return set('bad-device');
       set('connecting', 'Connecting');
       await load();
     },
@@ -207,6 +213,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       clearTimeout(timer);
       clearTimeout(pollTimer);
       hold.stop();
+      stopInstance?.();
     },
     release() {
       if (!st.holdAt) return;
