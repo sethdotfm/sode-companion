@@ -1,0 +1,23 @@
+{
+  "type": "connection",
+  "id": "sode-panels",
+  "name": "sode-panels",
+  "shortname": "panels",
+  "description": "Runs a Sode panel on Companion buttons",
+  "version": "0.0.1",
+  "isPrerelease": true,
+  "license": "MIT",
+  "repository": "git+https://github.com/sethdotfm/sode-companion.git",
+  "bugs": "https://github.com/sethdotfm/sode-companion/issues",
+  "maintainers": [{ "name": "Seth Williams", "github": "sethdotfm" }],
+  "legacyIds": [],
+  "runtime": {
+    "type": "node22",
+    "api": "nodejs-ipc",
+    "apiVersion": "2.2.2",
+    "entrypoint": "../src/main.js"
+  },
+  "manufacturer": "Sode",
+  "products": ["Panels"],
+  "keywords": ["router", "panel", "routing"]
+}
