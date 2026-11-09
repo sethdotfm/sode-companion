@@ -205,7 +205,7 @@ test('a refused take flashes on the Take key', async () => {
   assert.equal(rt.variables().error, 'The router is busy');
 });
 
-test('the view and plan have no idle clock, as on Sode\'s panel page', async () => {
+test("the view and plan have no idle clock, as on Sode's panel page", async () => {
   const { rt, clock } = await connect();
   await press(rt, DST_A);
   await press(rt, SRC2);
