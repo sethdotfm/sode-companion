@@ -23,6 +23,7 @@ export const COLOURS = {
   'destination-staged': ORANGE,
   take: CONTROL,
   'take-armed': AMBER,
+  'take-confirm': ORANGE,
   preset: HOVER,
   'preset-pending': ORANGE,
   unavailable: CONTROL,

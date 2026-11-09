@@ -325,7 +325,11 @@ export function createRuntime({
       }
       case 'take': {
         const armed = model.armed(state, env);
-        const look = { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
+        // Sode's web page has no confirm look; the key is small, so the second press is asked for in text.
+        const confirm = armed && model.guardWaiting(state, now());
+        const look = confirm
+          ? { text: 'Press\nagain', colour: 'take-confirm', pulse: 1 }
+          : { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
         return state.holdAt ? { ...look, fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) } : look;
       }
       case 'preset': {

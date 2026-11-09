@@ -260,6 +260,27 @@ test('a route the router already satisfies leaves the plan on the next poll', as
   await until(() => look(rt, TAKE).colour === 'take');
 });
 
+test('after a take the destination stays viewed, shows its new source and the plan is empty', async () => {
+  let fake;
+  const hold = await connect({
+    takeReply: (body) => {
+      fake.tally = { levels: levels2, routes: [route(0, 1, 1), route(0, 2, 1), route(1, 1, 0), route(1, 2, 0)] };
+      return { status: 200, body: { ok: true, results: body.routes.map((r) => ({ ...r, result: 'connected', ok: true })) } };
+    },
+  });
+  const rt = hold.rt;
+  fake = hold.fake;
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  await until(() => look(rt, SRC2).colour === 'source-current');
+  assert.equal(rt.variables().staged, 0);
+  assert.equal(rt.variables().viewed, 'MON A');
+  assert.equal(look(rt, SRC1).colour, 'source');
+  assert.equal(look(rt, CURRENT).text, 'MON A is currently:\nCAM 2');
+  assert.equal(look(rt, TAKE).colour, 'take');
+});
+
 test('the key goes out only as a Bearer header on takes and polls', async () => {
   const { rt, fake } = await connect();
   await press(rt, DST_A);
