@@ -36,7 +36,8 @@ const apiError = (res, status, code, message = code) => {
 
 // opts.panel, opts.names; opts.refuse = { status, code } answers every call with that error.
 export async function startFakeSode(opts = {}) {
-  const fake = { panel: opts.panel, names: opts.names || NAMES, refuse: opts.refuse || null, requests: [] };
+  // keepalives: parsed bodies of POST /panels/{id}/instances. streams: one entry per held instances stream, end() drops it.
+  const fake = { panel: opts.panel, names: opts.names || NAMES, refuse: opts.refuse || null, requests: [], keepalives: [], streams: [] };
   const server = http.createServer((req, res) => {
     const path = new URL(req.url, 'http://x').pathname;
     fake.requests.push({ method: req.method, path, auth: req.headers.authorization || '', url: req.url });
@@ -45,6 +46,24 @@ export async function startFakeSode(opts = {}) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(body));
     };
+    const inst = /^\/api\/v1\/panels\/([^/]+)\/instances(\/stream)?$/.exec(path);
+    if (inst && (inst[1] === fake.panel?.id || inst[1] === fake.panel?.slug)) {
+      if (inst[2] && req.method === 'GET') {
+        const entry = { device: new URL(req.url, 'http://x').searchParams.get('device'), open: true, end: () => res.end() };
+        fake.streams.push(entry);
+        res.on('close', () => (entry.open = false));
+        res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
+        return res.write('{"online":true,"graceSeconds":8}\n');
+      }
+      if (!inst[2] && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (d) => (raw += d));
+        return req.on('end', () => {
+          fake.keepalives.push(JSON.parse(raw || '{}'));
+          json({ ok: true });
+        });
+      }
+    }
     const m = /^\/api\/v1\/panels\/([^/]+)$/.exec(path);
     if (m && (m[1] === fake.panel?.id || m[1] === fake.panel?.slug)) return json(fake.panel);
     if (m) return apiError(res, 404, 'not_found');

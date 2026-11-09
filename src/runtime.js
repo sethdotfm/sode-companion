@@ -1,5 +1,6 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
 import { cellsIn, namesFrom } from './vendor/panelrules.js';
+import { deviceName, startInstance } from './instance.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -14,6 +15,7 @@ const FAILS = {
   'api-off': 'The API is switched off in Sode. Ask an administrator to turn it on.',
   unreachable: 'Sode did not answer. Check the host, port and TLS choice.',
   'bad-config': 'Set the host, port, panel and key in the connection settings.',
+  'bad-device': 'The device name is over 40 characters. Shorten it, or the connection label when the device name is blank.',
 };
 
 export const FAILURE_CODES = Object.keys(FAILS);
@@ -29,7 +31,7 @@ class Refused extends Error {
 
 const NO_PANEL = { rows: 0, cols: 0 };
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, device = '', label = '', fetch: doFetch = globalThis.fetch, retryMs = 5000, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -37,6 +39,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let drawn = [];
   let stopped = false;
   let timer = 0;
+  let stopInstance = null;
+  const name = deviceName(device, label);
   const listeners = [];
 
   const set = (code, text = FAILS[code]) => {
@@ -63,6 +67,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       panel = p;
       names = namesFrom(nm);
       drawn = cellsIn(p).sort((a, b) => a.r - b.r || a.c - b.c);
+      stopInstance ??= startInstance({ base, panelId: p.id, key, device: name, fetch: doFetch, retryMs, log });
       set('ok', `Panel ${p.name}`);
     } catch (e) {
       if (stopped) return;
@@ -77,12 +82,14 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   return {
     async start() {
       if (!host || !port || !panelRef || !key) return set('bad-config');
+      if (name === null) return set('bad-device');
       set('connecting', 'Connecting');
       await load();
     },
     stop() {
       stopped = true;
       clearTimeout(timer);
+      stopInstance?.();
     },
     onChange: (fn) => listeners.push(fn),
     status: () => status,
