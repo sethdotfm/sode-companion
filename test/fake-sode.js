@@ -93,9 +93,11 @@ export async function startFakeSode(opts = {}) {
       req.on('end', () => {
         const body = JSON.parse(raw || '{}');
         fake.takes.push({ body, idempotencyKey: req.headers['idempotency-key'] || '' });
-        const reply = fake.takeReply(body);
-        res.writeHead(reply.status, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(reply.body));
+        // takeReply may return a promise, so a test can hold a take in flight.
+        Promise.resolve(fake.takeReply(body)).then((reply) => {
+          res.writeHead(reply.status, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(reply.body));
+        });
       });
       return;
     }
