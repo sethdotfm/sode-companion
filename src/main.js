@@ -2,10 +2,10 @@
 import { InstanceBase, InstanceStatus } from '@companion-module/base';
 import { createRuntime } from './runtime.js';
 import { instanceStatusOf } from './companion-status.js';
+import { pulseLevel } from './timing.js';
 
 const WHITE = 0xffffff;
 // Muted idle colours per Cell kind. Source, Destination and press states come with the takes work.
-// Pulse phases come with their own slice; a pulsing look shows its solid colour for now.
 const COLOURS = {
   source: 0x1f3a5f,
   'source-current': 0x1f8f3f,
@@ -18,7 +18,18 @@ const COLOURS = {
   preset: 0x3a1f5f,
   clear: 0x444444,
   current: 0x1f5f5f,
+  'result-connected': 0x1f8f3f,
+  'result-already': 0x1f5f8f,
+  'result-failed': 0xd02a2a,
+  error: 0xd02a2a,
   none: 0x000000,
+};
+
+const scale = (rgb, f) => [16, 8, 0].reduce((out, sh) => out | (Math.round(((rgb >> sh) & 0xff) * f) << sh), 0);
+// A pulse phase dims the state colour; 0 is steady.
+const bgOf = ({ colour, pulse }) => {
+  const rgb = COLOURS[colour] ?? COLOURS.none;
+  return pulse ? scale(rgb, pulseLevel(pulse)) : rgb;
 };
 
 class SodePanelsInstance extends InstanceBase {
@@ -55,7 +66,7 @@ class SodePanelsInstance extends InstanceBase {
         affectedProperties: ['text', 'color', 'bgcolor'],
         callback: ({ options }) => {
           const look = this.runtime?.look(options.row, options.col);
-          return look ? { text: look.text, color: WHITE, bgcolor: COLOURS[look.colour] ?? COLOURS.none } : {};
+          return look ? { text: look.text, color: WHITE, bgcolor: bgOf(look) } : {};
         },
       },
     });

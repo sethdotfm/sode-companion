@@ -1,6 +1,8 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
 import { cellsIn, namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
+import { createTiming } from './timing.js';
+import { flashWord } from './flash.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -34,7 +36,7 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, timers = { setTimeout, clearTimeout }, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -46,8 +48,13 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let polls = 0;
   let st = model.createState();
   let env = envFrom({}, {});
+  let flash = null; // { cell, at }: the Cell whose press set the error shown
   const listeners = [];
-  const changed = () => listeners.forEach((fn) => fn());
+  const changed = () => {
+    timing.sync();
+    listeners.forEach((fn) => fn());
+  };
+  const timing = createTiming({ timers, now, read: () => st, write: (next) => (st = next), notify: changed });
 
   const set = (code, text = FAILS[code]) => {
     status = { code, text };
@@ -123,6 +130,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
         return { text, colour: s === 'idle' ? 'source' : `source-${s}`, pulse: s === 'pending' ? 1 : 0 };
       }
       case 'destination': {
+        const shown = model.resultShown(st, cell.n, now());
+        if (shown) return { text: `${text}\n${shown.word}`, colour: `result-${shown.result}`, pulse: 0 };
         const s = model.destinationState(st, cell.n);
         if (s === 'staged') return { text: `${text}\n${names.source(st.staged.find((x) => x.dst === cell.n).src)}`, colour: 'destination-staged', pulse: 1 };
         return { text, colour: s === 'idle' ? 'destination' : `destination-${s}`, pulse: 0 };
@@ -160,6 +169,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     } catch {
       st = model.failTake(st, 'unreachable', 'Sode did not answer the take', now());
     }
+    st = { ...st, touchedAt: now() };
     changed();
     if (!stopped) poll1();
   }
@@ -175,6 +185,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     },
     stop() {
       stopped = true;
+      timing.stop();
       clearTimeout(timer);
       clearTimeout(pollTimer);
     },
@@ -202,6 +213,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
         default:
           return;
       }
+      if (st.error && st.error !== before.error) flash = { cell, at: st.error.at };
       if (st !== before) changed();
     },
     variables() {
@@ -222,8 +234,10 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       const cell = cellAt(r, c);
       if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
-      const { colour, pulse, text } = cellLook(cell);
-      return { text: root ? text : '', colour, pulse };
+      const err = model.errorOf(st, now());
+      const flashing = err && flash?.cell === cell && flash.at === err.at;
+      const { colour, pulse, text } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
+      return { text: root ? text : '', colour, pulse: pulse ? timing.phase() : 0 };
     },
   };
 }

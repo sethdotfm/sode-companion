@@ -171,7 +171,9 @@ test('a failed route stays staged and Take can be pressed again', async () => {
   await press(rt, DST_A);
   await press(rt, SRC2);
   await press(rt, TAKE);
-  assert.equal(look(rt, DST_A).colour, 'destination-staged');
+  // The Failed word covers the key for a moment, but the route is still staged.
+  assert.equal(look(rt, DST_A).text, 'MON A\nFailed');
+  assert.equal(rt.variables().staged, 1);
   assert.equal(look(rt, TAKE).colour, 'take-armed');
   await press(rt, TAKE);
   assert.equal(fake.takes.length, 2);
@@ -183,7 +185,9 @@ test('a refused take (403) keeps the plan staged and reports the reason', async 
   await press(rt, DST_A);
   await press(rt, SRC2);
   await press(rt, TAKE);
-  assert.equal(look(rt, TAKE).colour, 'take-armed');
+  // The Take key flashes the refusal; the plan is still staged.
+  assert.equal(look(rt, TAKE).colour, 'error');
+  assert.equal(rt.variables().staged, 1);
   assert.ok(rt.variables().error.length > 0);
 });
 
