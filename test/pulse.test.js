@@ -229,7 +229,7 @@ test('a double-press Take shows "Press\\nagain" in its own colour for 1.5 second
   await press(rt, SRC2);
   assert.equal(look(rt, TAKE).colour, 'take-armed');
   await press(rt, TAKE);
-  assert.equal(look(rt, TAKE).text, 'Press\nagain');
+  assert.equal(look(rt, TAKE).text, 'Press\nTake\nagain');
   assert.equal(look(rt, TAKE).colour, 'take-confirm');
   let n = 0;
   rt.onChange(() => n++);
@@ -259,7 +259,7 @@ test('the confirm look reaches the key colour variables through styleOf', async 
   await press(rt, SRC2);
   await press(rt, TAKE);
   const style = styleOf(look(rt, TAKE));
-  assert.equal(style.text, 'Press\nagain');
+  assert.equal(style.text, 'Press\nTake\nagain');
   assert.notEqual(style.bgcolor, styleOf({ text: '', colour: 'take-armed', pulse: 0 }).bgcolor);
   assert.ok(COLOURS['take-confirm'] !== undefined);
   assert.notEqual(COLOURS['take-confirm'], COLOURS['take-armed']);
@@ -289,7 +289,7 @@ test('the armed Take is red and its text is at least 4.5:1 against it, dimmed or
 
 test('the confirm Take is amber, apart from the red armed Take', () => {
   assert.equal(COLOURS['take-confirm'], 0xf2b84b);
-  assert.equal(styleOf({ text: 'Press\nagain', colour: 'take-confirm', pulse: 0 }).color, 0x14131f);
+  assert.equal(styleOf({ text: 'Press\nTake\nagain', colour: 'take-confirm', pulse: 0 }).color, 0x14131f);
 });
 
 test('a hold guard keeps the armed look and its fill, and asks to keep holding while the press lasts', async () => {

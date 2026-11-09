@@ -434,7 +434,7 @@ export function createRuntime({
         // Sode's web page has no confirm look; the key is small, so the second press is asked for in text.
         const confirm = armed && model.guardWaiting(state, now());
         const look = confirm
-          ? { text: 'Press\nagain', colour: 'take-confirm', pulse: 1 }
+          ? { text: 'Press\nTake\nagain', colour: 'take-confirm', pulse: 1 }
           : { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
         return state.holdAt ? { ...look, text: 'Keep\nholding', fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) } : look;
       }
@@ -461,7 +461,7 @@ export function createRuntime({
   function takePrompt() {
     if (!model.armed(state, env)) return null;
     if (state.holdAt) return { text: 'Keep\nholding', colour: 'take-armed' };
-    return model.guardWaiting(state, now()) ? { text: 'Press\nagain', colour: 'take-confirm' } : null;
+    return model.guardWaiting(state, now()) ? { text: 'Press\nTake\nagain', colour: 'take-confirm' } : null;
   }
 
   // The viewed Destination and the staged Sources, which the option lets share the Take's prompt.
@@ -608,7 +608,7 @@ export function createRuntime({
       // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
       const glyph = artIdOf(cell) ? '' : glyphOf(cell);
       const iconPicture = (icon || glyph) && iconAt(cell, r, c, icon, glyph, cell.hideText === true ? WHITE : textFor(colour));
-      // A Result, refusal, "Press again" or "Keep holding" still speaks over hidden text.
+      // A Result, refusal, "Press Take again" or "Keep holding" still speaks over hidden text.
       const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm' || fill !== undefined || !!prompt;
       return {
         text: root && (speaks || !textHidden(cell)) ? text : '',

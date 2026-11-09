@@ -35,7 +35,7 @@ class SodePanelsInstance extends InstanceBase {
         type: 'checkbox',
         label: 'Show Take messages on the route keys',
         tooltip:
-          'Also shows "Keep holding" and "Press again" on the viewed Destination and the staged Sources, where a finger on the Take key hides them.',
+          'Also shows "Keep holding" and "Press Take again" on the viewed Destination and the staged Sources, where a finger on the Take key hides them.',
         width: 12,
         default: false,
       },

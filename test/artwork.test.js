@@ -462,7 +462,7 @@ test('an Icon drops with Offline, and a Cell changed from Artwork to an Icon swa
   await until(() => pic(host, 1, 1) === '', 'the Icon dropped');
 });
 
-test('hidden text stays empty when the art string is malformed, but "Press again" still speaks', async () => {
+test('hidden text stays empty when the art string is malformed, but "Press Take again" still speaks', async () => {
   const cells = [
     { r: 1, c: 1, kind: 'source', n: 0, art: 'a-zzz', hideText: true },
     { r: 1, c: 2, kind: 'source', n: 1, art: 'icon:', hideText: true },
@@ -478,7 +478,7 @@ test('hidden text stays empty when the art string is malformed, but "Press again
   await rt.press(1, 2);
   assert.equal(host.values.key_1_4, '');
   await rt.press(1, 4);
-  await until(() => host.values.key_1_4 === 'Press\nagain', 'the confirm text');
+  await until(() => host.values.key_1_4 === 'Press\nTake\nagain', 'the confirm text');
 });
 
 // A runtime stub, so each state colour can be checked without driving a take to it.

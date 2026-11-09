@@ -67,18 +67,18 @@ test('with the option off, the route keys keep their names while the Take asks f
   const { rt } = await connect();
   await stage(rt);
   await press(rt, TAKE);
-  assert.equal(look(rt, TAKE).text, 'Press\nagain');
-  for (const key of [DST_A, SRC2, SRC1, DST_B]) assert.notEqual(look(rt, key).text, 'Press\nagain');
+  assert.equal(look(rt, TAKE).text, 'Press\nTake\nagain');
+  for (const key of [DST_A, SRC2, SRC1, DST_B]) assert.notEqual(look(rt, key).text, 'Press\nTake\nagain');
 });
 
-test('with the option on, the viewed Destination and each staged Source show "Press again" in the confirm colour', async () => {
+test('with the option on, the viewed Destination and each staged Source show "Press Take again" in the confirm colour', async () => {
   const { rt } = await connect({ takeMessages: true });
   await stage(rt);
   const others = [SRC1, DST_B, CLEAR];
   const names = others.map((k) => look(rt, k).text);
   await press(rt, TAKE);
   for (const key of [DST_A, SRC2]) {
-    assert.equal(look(rt, key).text, 'Press\nagain');
+    assert.equal(look(rt, key).text, 'Press\nTake\nagain');
     assert.equal(look(rt, key).colour, 'take-confirm');
   }
   assert.deepEqual(
@@ -101,7 +101,7 @@ test('the names return when the double-press window lapses and when the second p
   clock.advance(100);
   await press(rt, TAKE);
   assert.equal(fake.takes.length, 1);
-  for (const key of [DST_A, SRC2]) assert.notEqual(look(rt, key).text, 'Press\nagain');
+  for (const key of [DST_A, SRC2]) assert.notEqual(look(rt, key).text, 'Press\nTake\nagain');
 });
 
 test('a hold guard shows "Keep holding" on the route keys while the press lasts, without the fill', async () => {
@@ -126,7 +126,7 @@ test('results stay as they were and are not a Take message', async () => {
   await press(rt, TAKE);
   assert.equal(fake.takes.length, 1);
   assert.ok(look(rt, DST_A).colour.startsWith('result-'));
-  assert.notEqual(look(rt, SRC2).text, 'Press\nagain');
+  assert.notEqual(look(rt, SRC2).text, 'Press\nTake\nagain');
 });
 
 test('a hidden-text Cell on the route speaks the prompt, and only the root square of a merged Cell carries it', async () => {
@@ -141,8 +141,8 @@ test('a hidden-text Cell on the route speaks the prompt, and only the root squar
   await rt.press(1, 2);
   assert.equal(look(rt, SRC2).text, '');
   await rt.press(1, 3);
-  assert.equal(look(rt, SRC2).text, 'Press\nagain');
-  assert.equal(look(rt, [2, 1]).text, 'Press\nagain');
+  assert.equal(look(rt, SRC2).text, 'Press\nTake\nagain');
+  assert.equal(look(rt, [2, 1]).text, 'Press\nTake\nagain');
   assert.equal(look(rt, [2, 2]).text, '');
 });
 
@@ -150,5 +150,5 @@ test('the key variables carry the prompt too', async () => {
   const { rt } = await connect({ takeMessages: true });
   await stage(rt);
   await press(rt, TAKE);
-  assert.equal(rt.variables().key_1_2, 'Press\nagain');
+  assert.equal(rt.variables().key_1_2, 'Press\nTake\nagain');
 });
