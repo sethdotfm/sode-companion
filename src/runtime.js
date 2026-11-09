@@ -230,9 +230,7 @@ export function createRuntime({
     set(code);
   }
 
-  // Real Sode (Beta 1.8.1) sends deltas without `topic`, unlike docs/api.md; then `t` names the topic.
-  function onFrame({ t, topic: given, data }) {
-    const topic = t === 'snapshot' ? given : (given ?? t);
+  function onFrame({ t, topic, data }) {
     if (topic === 'names') names = namesFrom(data);
     else if (topic === 'tally') {
       tallyRaw = t === 'snapshot' ? data : mergeTally(tallyRaw, data);

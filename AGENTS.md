@@ -12,7 +12,7 @@ A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, br
 
 ## Live stream
 
-- Real Sode (Beta 1.8.1) sends `/stream` deltas without `topic`, unlike `docs/api.md`. `onFrame` in `src/runtime.js` takes `topic ?? t` for non-snapshot frames, and the fake Sode omits `topic` unless `deltaTopic` is set.
+- `/stream` frames carry `topic`, as `docs/api.md` shows. `onFrame` in `src/runtime.js` ignores a change frame without one. Sode sent none before commit ae80cf0 on `integration/panels`, which this module expects.
 - While the stream is up, only protected and presets are polled, and tally is re-read every `rereadMs` (30 s) on its own injectable timer, so a missed delta heals. Down, tally and status poll every `pollMs`.
 
 ## Generator
