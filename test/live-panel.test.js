@@ -8,13 +8,12 @@ afterEach(async () => {
   while (open.length) await open.pop()();
 });
 
-// The injected clock gates the 10 second wait; liveMs is real time between panel reads.
+// liveMs is real time between panel reads.
 async function connect(fake, over = {}) {
-  const clock = { t: 1_000_000 };
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 0, liveMs: 15, now: () => clock.t, ...over });
+  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 0, liveMs: 15, ...over });
   open.push(() => rt.stop(), () => fake.close());
   await rt.start();
-  return { rt, clock };
+  return { rt };
 }
 
 const until = async (fn, ms = 1500) => {
@@ -57,35 +56,41 @@ test('a newer panel applies at once when nothing is viewed or staged', async () 
   const fake = await startFakeSode({ panel: panelOf(BASE) });
   const { rt } = await connect(fake);
   fake.panel = panelOf([{ r: 1, c: 1, kind: 'source', n: 1 }, ...BASE.slice(1)], { rev: 2 });
-  await until(() => rt.look(1, 1).text === 'CAM 2'); // the clock never moved
-});
-
-test('a newer panel waits 10 seconds while a destination is viewed, and the view is kept', async () => {
-  const fake = await startFakeSode({ panel: panelOf(BASE) });
-  const { rt, clock } = await connect(fake);
-  await rt.press(1, 2);
-  fake.panel = panelOf([{ r: 1, c: 1, kind: 'source', n: 1 }, ...BASE.slice(1)], { rev: 2 });
-  await idle();
-  assert.equal(rt.look(1, 1).text, 'CAM 1');
-  clock.t += 9_000;
-  await idle();
-  assert.equal(rt.look(1, 1).text, 'CAM 1');
-  clock.t += 1_500;
   await until(() => rt.look(1, 1).text === 'CAM 2');
-  assert.equal(rt.look(1, 2).colour, 'destination-view');
 });
 
-test('a newer panel does not replace staged routes; it applies once they are cleared', async () => {
+test('a newer panel applies at once while a destination is viewed or routes are staged, and drops both', async () => {
   const fake = await startFakeSode({ panel: panelOf(BASE) });
-  const { rt, clock } = await connect(fake);
+  const { rt } = await connect(fake);
   await rt.press(1, 2);
   await rt.press(1, 1);
+  assert.equal(rt.variables().staged, 1);
   fake.panel = panelOf([{ r: 1, c: 1, kind: 'source', n: 1 }, ...BASE.slice(1)], { rev: 2 });
-  clock.t += 60_000;
+  await until(() => rt.look(1, 1).text === 'CAM 2');
+  assert.equal(rt.variables().staged, 0);
+  assert.equal(rt.variables().viewed, '');
+  assert.equal(rt.look(1, 2).colour, 'destination');
+});
+
+test('a newer panel waits for a take in flight, then applies', async () => {
+  let release;
+  const held = new Promise((ok) => (release = ok));
+  const fake = await startFakeSode({
+    panel: panelOf([...BASE, { r: 2, c: 1, kind: 'take' }]),
+    takeReply: async (body) => {
+      await held;
+      return { status: 200, body: { ok: true, results: body.routes.map((r) => ({ ...r, result: 'connected', ok: true })) } };
+    },
+  });
+  const { rt } = await connect(fake);
+  await rt.press(1, 2);
+  await rt.press(1, 1);
+  const taking = rt.press(2, 1);
+  fake.panel = panelOf([{ r: 1, c: 1, kind: 'source', n: 1 }, ...BASE.slice(1), { r: 2, c: 1, kind: 'take' }], { rev: 2 });
   await idle();
   assert.equal(rt.look(1, 1).text, 'CAM 1');
-  assert.equal(rt.variables().staged, 1);
-  await rt.press(1, 3);
+  release();
+  await taking;
   await until(() => rt.look(1, 1).text === 'CAM 2');
 });
 
@@ -129,4 +134,15 @@ test('a panel larger than the Companion grid uses the squares from the top left,
   }
   assert.equal(rt.status().code, 'ok');
   assert.equal(rt.variables().staged, 0);
+});
+
+test('a key refused on a panel read stops all polling', async () => {
+  const fake = await startFakeSode({ panel: panelOf(BASE) });
+  const { rt } = await connect(fake);
+  fake.refuse = { status: 401, code: 'invalid_key' };
+  await until(() => rt.status().code === 'key-refused');
+  await idle();
+  const n = fake.requests.length;
+  await idle();
+  assert.equal(fake.requests.length, n);
 });

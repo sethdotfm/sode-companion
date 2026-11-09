@@ -1,5 +1,5 @@
-// The only file that knows Companion's page and button shapes. The real 5.1.2 export is not matched yet:
-// replace this wrapping when it is, and the core and tests of the squares stay as they are.
+// The only file that knows Companion's page and button shapes. Companion's import format is undocumented, so
+// this shape is a guess until a real 5.1.2 export is matched. Keep all format wrapping here.
 import { squareVariable } from '../visible.js';
 
 const WHITE = 0xffffff;

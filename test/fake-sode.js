@@ -1,4 +1,4 @@
-// A small Sode for seam 1: serves the /api/v1 reads the runtime makes and records every request.
+// A small Sode that serves the /api/v1 reads the runtime makes and records every request.
 // Keys are never printed: tests compare them with assert.ok so a failure shows no value.
 import http from 'node:http';
 import { createHash } from 'node:crypto';
@@ -46,12 +46,13 @@ const wsFrame = (text) => {
 // opts.panel, opts.names; opts.refuse = { status, code } answers every call with that error.
 // opts.stream = true serves GET /stream as a WebSocket. Off by default, so the upgrade answers 404 and the runtime polls.
 // fake.streamEnabled turns it off and on later; fake.push(topic, data) sends a frame; fake.dropStream() closes every socket.
-// fake.noStatusScope makes /status and the status topic 403 scope. fake.upgrades records each upgrade attempt.
+// fake.fail = { path, status, code } answers that one path with an error. fake.noStatusScope makes /status and the status topic 403 scope. fake.upgrades records each upgrade attempt.
 export async function startFakeSode(opts = {}) {
   const fake = {
     panel: opts.panel,
     names: opts.names || NAMES,
     refuse: opts.refuse || null,
+    fail: null,
     requests: [],
     // keepalives: parsed bodies of POST /panels/{id}/instances. streams: one per held instances stream, end() drops it.
     keepalives: [],
@@ -70,9 +71,13 @@ export async function startFakeSode(opts = {}) {
     takeReply: opts.takeReply || ((body) => ({ status: 200, body: { ok: true, results: body.routes.map((r, i) => ({ id: i + 1, ...r, result: 'connected', ok: true })) } })),
   };
   const server = http.createServer((req, res) => {
+    // A client that aborts mid-request (a stopped runtime) must not crash the test process.
+    req.on('error', () => {});
+    res.on('error', () => {});
     const path = new URL(req.url, 'http://x').pathname;
     fake.requests.push({ method: req.method, path, auth: req.headers.authorization || '', url: req.url });
     if (fake.refuse) return apiError(res, fake.refuse.status, fake.refuse.code);
+    if (fake.fail && path === fake.fail.path) return apiError(res, fake.fail.status, fake.fail.code);
     const json = (body) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(body));
@@ -121,6 +126,7 @@ export async function startFakeSode(opts = {}) {
     }
     return apiError(res, 404, 'not_found');
   });
+  server.on('clientError', (_err, sock) => sock.destroy());
   fake.push = (topic, data, t = topic) => {
     for (const sock of fake.sockets) sock.write(wsFrame(JSON.stringify({ t, topic, data })));
   };
@@ -129,6 +135,8 @@ export async function startFakeSode(opts = {}) {
     fake.sockets.clear();
   };
   server.on('upgrade', (req, sock) => {
+    // A refused upgrade is answered and closed; the client resetting it must not crash the test process.
+    sock.on('error', () => {});
     const url = new URL(req.url, 'http://x');
     const topics = (url.searchParams.get('topics') || '').split(',').filter(Boolean);
     fake.upgrades.push({ path: url.pathname, auth: req.headers.authorization || '', url: req.url, topics });

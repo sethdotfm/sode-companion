@@ -236,10 +236,14 @@ test('Clear drops the view and the plan and never calls the router', async () =>
 
 test('variables hold the viewed destination, its current source and the staged count', async () => {
   const { rt } = await connect();
-  assert.deepEqual(rt.variables(), { viewed: '', current: '', staged: 0, error: '' });
+  const fields = () => {
+    const { viewed, current, staged, error } = rt.variables();
+    return { viewed, current, staged, error };
+  };
+  assert.deepEqual(fields(), { viewed: '', current: '', staged: 0, error: '' });
   await press(rt, DST_A);
   await press(rt, SRC2);
-  assert.deepEqual(rt.variables(), { viewed: 'MON A', current: 'CAM 1', staged: 1, error: '' });
+  assert.deepEqual(fields(), { viewed: 'MON A', current: 'CAM 1', staged: 1, error: '' });
 });
 
 test('a route the router already satisfies leaves the plan on the next poll', async () => {

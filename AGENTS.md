@@ -12,7 +12,9 @@ A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, br
 
 ## Vendored panel model
 
-`src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js` and `panellink.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
+`src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js`, `panellink.js` and `panelupdate.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
+
+`src/live-panel.js` diverges from Sode's web page on purpose: a newer panel applies at once and drops the view and staged routes, held only while a take is in flight.
 
 ## Agent skills
 
