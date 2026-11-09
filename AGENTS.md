@@ -6,14 +6,15 @@ A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, br
 
 ## Layout and checks
 
-- `src/runtime.js` is the panel runtime and knows nothing of Companion. `src/main.js` is the thin Companion shell, and `src/companion-status.js` maps runtime status codes to Companion's.
+- `src/runtime.js` is the panel runtime and knows nothing of Companion. It serves every key square of the panel, and the generated page decides how many buttons exist. `src/pictures.js` holds the Key pictures (Artwork fetch, Icons) behind it. `src/main.js` is the thin Companion shell, and `src/companion-status.js` maps runtime status codes to Companion's.
 - `npm test` runs `node --test` against a fake Sode (`test/fake-sode.js`). Never print, log or commit a key: compare headers with `assert.ok`, since `assert.equal` prints both values on failure.
 - `npm run link-dev -- <developer modules folder>` symlinks the repo into Companion's developer folder. `npm run package` builds the side-loadable package.
 
 ## Live stream
 
 - `/stream` frames carry `topic`, as `docs/api.md` shows. `onFrame` in `src/runtime.js` ignores a change frame without one. This needs a Sode build that sends `topic`; `src/vendor/SOURCE` records the commit the stream was checked against.
-- While the stream is up, only protected and presets are polled, and tally is re-read every `rereadMs` (30 s) on its own injectable timer, so a missed delta heals. Down, tally and status poll every `pollMs`.
+- While the stream is up, only protected and presets are polled (a tick with nothing due reads nothing), and tally is re-read every `rereadMs` (30 s), so a missed delta heals. Down, tally and status poll every `pollMs`.
+- Every runtime timer (poll, panel check, re-read, load retry, hold) runs on the injectable `timers`, one per named job (`wake`, `unwake` in `src/runtime.js`), so tests drive them with `test/fake-clock.js`.
 
 ## Generator
 
@@ -23,7 +24,7 @@ Layer stack of a generated button, bottom to top: `box0` (the Border plate, stat
 
 Icon B is the Cell's `artB`, a glyph 0 to 16 or A to Z (`glyphOf` in `src/icons.js`). It is drawn as SVG text, in the same picture as Icon A (`iconSvg`): alone it fills the key, beside Icon A it takes 60% of the width and Icon A 40%, as in Sode's `web/panels.css`. It uses the Icon colour rule (key text colour, white under hidden text). Beside raster or SVG Artwork it is not drawn, since the Artwork picture is bytes we do not rewrite, but a valid Icon B still counts as art for hidden text.
 
-`src/artwork.js` turns Artwork bytes (PNG, JPEG, GIF via pngjs, jpeg-js, omggif, all pure JavaScript) into a 72 px square Key picture, published as raw base64 of a PNG. The runtime fetches each art id once from `panels/{id}/artwork/{art}`, drops ids no Cell names after a panel change, and retries failures then. SVG passes through as a data URL. A merged Cell's picture is cut per key square (`keyPictures`, `cropSvg`): rasters are cropped and SVGs get a narrower view box, with the 8% Border band only on the group's outer edges, so the square's `_b*` variables are 0 on inner sides. Oversize (Content-Length or bytes over 1 MB, or PNG and GIF header dimensions over the pixel cap) and unsupported Artwork stays plain. A hidden-text Cell with any art string shows no label, even when the art does not resolve.
+`src/artwork.js` turns Artwork bytes (PNG, JPEG, GIF via pngjs, jpeg-js, omggif, all pure JavaScript) into a 72 px square Key picture, published as raw base64 of a PNG. The runtime (`src/pictures.js`) fetches each art id once from `panels/{id}/artwork/{art}`, drops ids no Cell names after a panel change, and retries failures then. SVG passes through as a data URL. A merged Cell's picture is cut per key square (`keyPictures`, `cropSvg`): rasters are cropped and SVGs get a narrower view box, with the 8% Border band only on the group's outer edges, so the square's `_b*` variables are 0 on inner sides. Oversize (Content-Length or bytes over 1 MB, or PNG and GIF header dimensions over the pixel cap) and unsupported Artwork stays plain. A hidden-text Cell with any art string shows no label, even when the art does not resolve.
 
 Every generated button is the same: it reads its text, colour and picture variables from the module, so a Cell added later in Sode's editor appears without regenerating. The module's Presets list still covers only drawn Cells (`visibleSquares`).
 
@@ -40,8 +41,6 @@ Other divergences from Sode's web page, kept in the runtime (`src/runtime.js`, `
 - A double-press Take shows "Press\nTake\nagain" in `take-confirm` (amber) from the first press until the 1.5 s window lapses or the second press fires. The hold guard keeps the armed look and its fill.
 - The `takeMessages` option (off by default) puts those two Take prompts on the viewed Destination and staged Source keys (`onRoute`, `takePrompt` in `src/runtime.js`), in the Take's own colour class and without the hold fill. A hidden-text Cell on the route speaks them, as on the Take. `configUpdated` rebuilds the runtime, so a change applies on save.
 - Take colours (`take-armed` red, `take-confirm` amber) mirror Sode's `web/panels.css` and need a manual re-check when Sode changes them.
-- Every runtime timer (poll, panel check, stream re-read, load retry, hold) runs on the injectable `timers`, one per named job (`wake`, `unwake` in `src/runtime.js`). While the stream is up a poll tick reads nothing unless the slow reads are due.
-- The runtime has no grid bound: it serves every key square of the panel, and the generated page decides how many buttons exist.
 - The pulse has 4 phases of 333 ms (500 ms at 1.5x speed), breathing between 72% and 100% of the state colour.
 
 ## Agent skills

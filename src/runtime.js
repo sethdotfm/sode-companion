@@ -8,9 +8,7 @@ import { keySquares, visibleSquares } from './visible.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
 import { fullKey } from './vendor/panellink.js';
-import { keyPicture, keyPictures, cropSvg, svgDataUrl, MAX_BYTES } from './artwork.js';
-import { iconMarkup, glyphOf, iconSvg } from './icons.js';
-import { textFor, WHITE } from './colours.js';
+import { createPictures, textHidden } from './pictures.js';
 
 // namesFrom has no label for a Take cell.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -53,11 +51,6 @@ const isRefusal = (e) => e.fail && e.fail !== 'unreachable';
 const scopeDenied = (e) => e.http === 403 && !isRefusal(e);
 
 const NO_PANEL = { rows: 0, cols: 0 };
-// Sode's pattern for an artwork id (web/panellook.js); any other art string is an icon or dropped.
-const ART_ID = /^a-[0-9a-f]{8}$/;
-// Percent of the key.
-const BORDER_PERCENT = 8;
-const ARTWORK_OPACITY = 30;
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
 // How often a hold's fill is redrawn.
@@ -114,10 +107,6 @@ export function createRuntime({
   let pressed = null; // the Cell of the press in progress
   let seenError = null;
   const listeners = [];
-  // Artwork by art id: its bytes, the picture for one key square, and the crops made per merged group size. Each id is
-  // fetched once; failed ids are retried when a newer panel applies.
-  const pictures = new Map();
-  const fetching = new Set();
   const changed = () => {
     if (state.error !== seenError) {
       seenError = state.error;
@@ -126,6 +115,7 @@ export function createRuntime({
     timing.sync();
     listeners.forEach((fn) => fn());
   };
+  const pictures = createPictures({ request, changed });
   const timing = createTiming({ timers, now, read: () => state, notify: changed });
 
   const set = (code, text = FAILS[code]) => {
@@ -204,7 +194,7 @@ export function createRuntime({
       if (!streamUp) reads.push(readTally(), readStatus());
       if (++polls % SLOW_EVERY === 0) reads.push(readSlow());
       // A quiet tick with the stream up reads nothing and tells nobody.
-      if (reads.length) {
+      if (reads.length || sodeLost) {
         await Promise.all(reads);
         sodeLost = false;
         syncOffline();
@@ -244,6 +234,7 @@ export function createRuntime({
   function refuse(code) {
     halted = true;
     unwakeAll();
+    if (state.holdAt) state = model.guardCancel(state);
     stream?.close();
     stopInstance?.();
     set(code);
@@ -268,79 +259,9 @@ export function createRuntime({
     drawn = visibleSquares(p)
       .filter((s) => s.root)
       .map((s) => s.cell);
-    syncArtwork(p);
+    pictures.sync(p.id, drawn);
   }
 
-  const artIdOf = (cell) => (typeof cell.art === 'string' && ART_ID.test(cell.art) ? cell.art : '');
-  const sizeOf = (cell) => ({ rs: cell.rs ?? 1, cs: cell.cs ?? 1 });
-
-  // The square at (r, c) of a Cell's group from cut(rs, cs), which gives rows of columns or null when the group cannot be cut.
-  const squareOf = (cell, r, c, cut) => {
-    const { rs, cs } = sizeOf(cell);
-    return cut(rs, cs)?.[r - cell.r]?.[c - cell.c];
-  };
-  const artworkAt = (cell, r, c) => {
-    const entry = pictures.get(artIdOf(cell));
-    if (!entry) return undefined;
-    return squareOf(cell, r, c, (rs, cs) => {
-      if (rs === 1 && cs === 1) return [[entry.single]];
-      const id = `${rs}x${cs}`;
-      if (!entry.groups.has(id)) entry.groups.set(id, keyPictures(entry.bytes, { rs, cs, border: BORDER_PERCENT }));
-      return entry.groups.get(id);
-    });
-  };
-  const edgesOf = (cell, r, c) => {
-    const { rs, cs } = sizeOf(cell);
-    return { bl: c === cell.c, bt: r === cell.r, br: c === cell.c + cs - 1, bb: r === cell.r + rs - 1 };
-  };
-  // The Key picture of one square with its Border and opacity, or nothing. An Icon keeps the solid fill, so it has no Border.
-  function pictureLook(cell, r, c, colour, hidden) {
-    const opacity = hidden ? 100 : ARTWORK_OPACITY;
-    const edges = edgesOf(cell, r, c);
-    const artwork = artworkAt(cell, r, c);
-    if (artwork) return { picture: artwork, border: BORDER_PERCENT, edges, opacity };
-    const markup = iconMarkup(cell.art);
-    // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
-    const glyph = artIdOf(cell) ? '' : glyphOf(cell);
-    if (!markup && !glyph) return {};
-    const svg = iconSvg(markup, glyph, cell.hideText === true ? WHITE : textFor(colour));
-    const picture = squareOf(cell, r, c, (rs, cs) => (rs === 1 && cs === 1 ? [[svgDataUrl(svg)]] : cropSvg(svg, { rs, cs, border: 0 })));
-    return picture ? { picture, border: 0, edges, opacity } : {};
-  }
-  // Sode hides text only under art or a valid Icon B, so a Cell with neither keeps its label. Any art string counts, valid or
-  // not, so a bad id or icon name does not bring the label back.
-  const textHidden = (cell) => cell.hideText === true && ((typeof cell.art === 'string' && cell.art !== '') || glyphOf(cell) !== '');
-
-  // Fetches the Artwork the drawn Cells name, and drops pictures no Cell names any more.
-  function syncArtwork(p) {
-    const wanted = new Set(drawn.map(artIdOf).filter(Boolean));
-    for (const id of [...pictures.keys()]) if (!wanted.has(id)) pictures.delete(id);
-    for (const id of wanted) if (!pictures.has(id) && !fetching.has(id)) fetchArtwork(p.id, id);
-  }
-
-  async function fetchArtwork(panelId, id) {
-    fetching.add(id);
-    let entry = null;
-    try {
-      const path = `panels/${encodeURIComponent(panelId)}/artwork/${id}`;
-      const res = await request(path);
-      // The header is checked before the body so an oversize file is never buffered.
-      if (res.ok && !(Number(res.headers.get('content-length')) > MAX_BYTES)) {
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        const single = keyPicture(bytes);
-        if (single) entry = { bytes, single, groups: new Map() };
-      }
-    } catch {
-      // Any failure leaves the key plain; the next applied panel tries again.
-    }
-    fetching.delete(id);
-    // A panel applied meanwhile may have dropped the id.
-    if (stopped || !entry || !drawn.some((cell) => artIdOf(cell) === id)) return;
-    pictures.set(id, entry);
-    changed();
-  }
-
-  // A newer saved copy applies at once unless a take is in flight; the view and staged routes go with the old copy.
   function settle() {
     if (!newer || state.busy) return;
     panel = newer;
@@ -588,6 +509,7 @@ export function createRuntime({
     stop() {
       stopped = true;
       timing.stop();
+      pictures.stop();
       unwakeAll();
       stream?.close();
       stopInstance?.();
@@ -631,16 +553,15 @@ export function createRuntime({
       const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const prompt = takeMessages && !flashing && onRoute(cell) ? takePrompt() : null;
-      const hidden = textHidden(cell);
       const { colour, pulse, text, fill, speaks } = flashing
         ? { colour: 'error', pulse: 0, text: flashWord(err), speaks: true }
         : prompt || cellLook(cell);
       return {
-        text: root && (speaks || !hidden) ? text : '',
+        text: root && (speaks || !textHidden(cell)) ? text : '',
         colour,
         pulse: pulse ? timing.phase() : 0,
         ...(fill === undefined ? {} : { fill }),
-        ...pictureLook(cell, r, c, colour, hidden),
+        ...pictures.at(cell, r, c, colour),
       };
     },
   };

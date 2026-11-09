@@ -201,6 +201,17 @@ test('the hold guard runs on the injected timers', async () => {
   await until(() => fake.takes.length === 1, 'the held take', 300);
 });
 
+test('a refused key cancels a hold in progress', async () => {
+  const { rt, fake } = await connect({ settings: { guard: 'hold' } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  assert.equal(look(rt, TAKE).fill, 0);
+  fake.refuse = { status: 401, code: 'invalid_key' };
+  await until(() => rt.status().code === 'key-refused', 'the refusal');
+  assert.equal(look(rt, TAKE).fill, undefined);
+});
+
 test('releasing a hold early cancels it', async () => {
   const { rt, fake, clock } = await connect({ settings: { guard: 'hold' } });
   await press(rt, DST_A);

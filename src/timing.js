@@ -5,7 +5,7 @@ import { RESULT_MS, ERROR_MS, GUARD_DOUBLE_MS } from './vendor/panelmodel.js';
 const PULSE_STEPS = 4;
 const PULSE_MS = 333;
 
-// Brightness of a pulse phase (1..4) as a fraction of the state colour: breathes between 0.72 and 1.
+// Brightness of a pulse phase (1..4) as a fraction of the state colour.
 export const pulseLevel = (phase) => 0.72 + 0.28 * (1 - Math.abs((phase - 1) / (PULSE_STEPS / 2) - 1));
 
 export function createTiming({ timers, now, read, notify }) {
