@@ -14,6 +14,7 @@
     "build": "companion-module-build",
     "package": "companion-module-build",
     "sync-model": "sh scripts/sync-model.sh",
+    "sync-icons": "sh scripts/sync-icons.sh",
     "link-dev": "sh scripts/link-dev.sh",
     "generate": "node scripts/generate.js"
   },

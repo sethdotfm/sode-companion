@@ -27,6 +27,8 @@ The Generator emits a button for every key square of the panel inside the Compan
 
 `src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js`, `panellink.js` and `panelupdate.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
 
+`src/vendor/lucide/` is a copy of Sode's Lucide sprite (`web/vendor/patchbay/icons/lucide.svg`) wrapped as the JS string `sprite.js` so the packaging tool bundles it, with the ISC licence in `LICENSE-lucide`. Its `SOURCE` line holds the Sode commit, branch and Lucide version. Refresh it with `scripts/sync-icons.sh [sode checkout]`. `build-config.cjs` copies the licence into the package. `src/icons.js` resolves a Cell's `icon:<name>` art string.
+
 `src/live-panel.js` diverges from Sode's web page on purpose: a newer panel applies at once and drops the view and staged routes, held only while a take is in flight.
 
 Other divergences from Sode's web page, kept in the runtime (`src/runtime.js`, `src/timing.js`), not the vendored model:

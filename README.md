@@ -50,6 +50,7 @@ This writes `sode-panels-<version>.tgz` in the repo root. In Companion, import i
 | `npm run build` | Builds the `.tgz` with `companion-module-build`. `npm run package` does the same. |
 | `npm run link-dev -- <folder>` | Symlinks the repo into Companion's developer modules folder as `sode-panels`. |
 | `npm run sync-model` | Refreshes the vendored copy of Sode's panel state model and records its source commit. |
+| `npm run sync-icons` | Refreshes the vendored copy of Sode's Lucide icon sprite and its licence, and records the source commit and Lucide version. |
 | `npm run generate` | Runs the Generator. |
 
 Keep `src/vendor` in step with Sode's `integration/panels` branch while panels are alpha. See [AGENTS.md](AGENTS.md).
