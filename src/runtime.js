@@ -131,7 +131,7 @@ export function createRuntime({
     timing.sync();
     listeners.forEach((fn) => fn());
   };
-  const timing = createTiming({ timers, now, read: () => state, write: (next) => (state = next), notify: changed });
+  const timing = createTiming({ timers, now, read: () => state, notify: changed });
 
   const set = (code, text = FAILS[code]) => {
     status = { code, text };
@@ -478,7 +478,6 @@ export function createRuntime({
     } catch {
       state = model.failTake(state, 'unreachable', 'Sode did not answer the take', now());
     }
-    state = { ...state, touchedAt: now() };
     changed();
     if (!stopped) refreshTally();
     settle();
@@ -544,7 +543,7 @@ export function createRuntime({
           changed();
           return confirmInstant();
         case 'clear':
-          state = model.pressClear(state, now());
+          state = model.clear(state);
           hold.stop();
           break;
         case 'take': {
