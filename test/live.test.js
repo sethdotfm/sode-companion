@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 import { until } from './until.js';
+import { fakeClock } from './fake-clock.js';
 
 const open = [];
 afterEach(async () => {
@@ -78,6 +79,66 @@ test('names pushed on the stream rename the keys', async () => {
   const { rt, fake } = await connect();
   fake.push('names', { numberOffset: 1, sources: [{ n: 0, name: 'GFX' }], destinations: [{ n: 0, name: 'MON A' }] });
   await until(() => rt.look(...SRC1).text === 'GFX', 'the new name');
+});
+
+// Real Sode sends deltas without a topic; docs/api.md shows one. Both must work.
+for (const deltaTopic of [false, true]) {
+  const shape = deltaTopic ? 'with' : 'without';
+  test(`tally, names and status deltas ${shape} a topic reach the keys`, async () => {
+    const { rt, fake } = await connect({ deltaTopic });
+    await rt.press(...DST_A);
+    fake.push('tally', { routes: [route(0, 1, 1)] });
+    await until(() => rt.look(...SRC2).colour === 'source-current', 'the tally delta');
+    fake.push('names', { numberOffset: 1, sources: [{ n: 0, name: 'GFX' }], destinations: [{ n: 0, name: 'MON A' }] });
+    await until(() => rt.look(...SRC1).text === 'GFX', 'the names delta');
+    fake.push('status', { router: 'down', routerUp: false, error: true });
+    await until(() => rt.look(...SRC1).colour === 'offline', 'the status delta');
+  });
+}
+
+test('ping and unknown frames are ignored', async () => {
+  const { rt, fake } = await connect();
+  await rt.press(...DST_A);
+  const before = rt.variables();
+  fake.pushRaw({ t: 'ping' });
+  fake.pushRaw({ t: 'ping', topic: 'tally', data: {} });
+  fake.pushRaw({ t: 'mystery', data: { routes: [route(0, 1, 1)] } });
+  fake.pushRaw({ t: 'tally', data: { routes: [route(0, 1, 1)] } });
+  await until(() => rt.look(...SRC2).colour === 'source-current', 'the frame after the ignored ones');
+  assert.equal(rt.status().code, 'ok');
+  assert.notDeepEqual(rt.variables(), before);
+});
+
+test('while the stream is up the tally is re-read every 30 s, so a missed delta heals', async () => {
+  const clock = fakeClock();
+  const { rt, fake } = await connect({}, { timers: clock.timers });
+  await rt.press(...DST_A);
+  fake.tally = tallyFrom(1);
+  const reads = tallyReads(fake);
+  clock.advance(29_999);
+  await sleep(50);
+  assert.equal(tallyReads(fake), reads);
+  clock.advance(1);
+  await until(() => rt.look(...SRC2).colour === 'source-current', 'the re-read tally');
+  assert.equal(tallyReads(fake), reads + 1);
+  // A take's own refresh does not move the next re-read.
+  await rt.press(...SRC1);
+  await rt.press(...TAKE);
+  const afterTake = tallyReads(fake);
+  clock.advance(30_000);
+  await until(() => tallyReads(fake) > afterTake, 'the next re-read');
+});
+
+test('dropping the stream stops the 30 s re-read', async () => {
+  const clock = fakeClock();
+  const { fake } = await connect({}, { timers: clock.timers, pollMs: 0 });
+  fake.streamEnabled = false;
+  fake.dropStream();
+  await sleep(100);
+  const reads = tallyReads(fake);
+  clock.advance(60_000);
+  await sleep(50);
+  assert.equal(tallyReads(fake), reads);
 });
 
 test('dropping the stream switches to polling, and reconnecting stops it', async () => {
