@@ -10,6 +10,7 @@ const MAP = {
   'session-mode': InstanceStatus.BadConfig,
   'panel-not-found': InstanceStatus.BadConfig,
   'bad-config': InstanceStatus.BadConfig,
+  'bad-device': InstanceStatus.BadConfig,
   'api-off': InstanceStatus.ConnectionFailure,
   unreachable: InstanceStatus.ConnectionFailure,
 };

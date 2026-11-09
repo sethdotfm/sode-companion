@@ -16,6 +16,8 @@ const COLOURS = {
   take: 0x7a1f1f,
   'take-armed': 0xd02a2a,
   preset: 0x3a1f5f,
+  'preset-pending': 0x7a3fd0,
+  unavailable: 0x222222,
   clear: 0x444444,
   current: 0x1f5f5f,
   'result-connected': 0x1f8f3f,
@@ -31,6 +33,7 @@ const bgOf = ({ colour, pulse }) => {
   const rgb = COLOURS[colour] ?? COLOURS.none;
   return pulse ? scale(rgb, pulseLevel(pulse)) : rgb;
 };
+const blend = (a, b, t) => [16, 8, 0].reduce((out, s) => out | (Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t) << s), 0);
 
 class SodePanelsInstance extends InstanceBase {
   runtime = null;
@@ -42,15 +45,24 @@ class SodePanelsInstance extends InstanceBase {
       staged: { name: 'Staged route count' },
       error: { name: 'Last error' },
     });
+    const where = [
+      { id: 'row', type: 'number', label: 'Row', default: 1, min: 1, max: 99 },
+      { id: 'col', type: 'number', label: 'Column', default: 1, min: 1, max: 99 },
+    ];
+    // Bound to a button's up step: a hold guard ends on release.
     this.setActionDefinitions({
       press: {
         name: 'Press a panel key square',
-        options: [
-          { id: 'row', type: 'number', label: 'Row', default: 1, min: 1, max: 99 },
-          { id: 'col', type: 'number', label: 'Column', default: 1, min: 1, max: 99 },
-        ],
+        options: where,
         callback: async ({ options }) => {
           await this.runtime?.press(options.row, options.col);
+        },
+      },
+      release: {
+        name: 'Release a panel key square',
+        options: where,
+        callback: async ({ options }) => {
+          this.runtime?.release(options.row, options.col);
         },
       },
     });
@@ -66,7 +78,11 @@ class SodePanelsInstance extends InstanceBase {
         affectedProperties: ['text', 'color', 'bgcolor'],
         callback: ({ options }) => {
           const look = this.runtime?.look(options.row, options.col);
-          return look ? { text: look.text, color: WHITE, bgcolor: bgOf(look) } : {};
+          if (!look) return {};
+          // A hold's fill is shown as the Take colour shifting to its armed colour; Companion has no partial fill for a button.
+          const bg = bgOf(look);
+          const bgcolor = look.fill === undefined ? bg : blend(bg, COLOURS['take-armed'], look.fill);
+          return { text: look.text, color: WHITE, bgcolor };
         },
       },
     });
@@ -101,7 +117,8 @@ class SodePanelsInstance extends InstanceBase {
       tls: !!config.tls,
       panel: config.panel,
       key: secrets?.key,
-      device: (config.device || this.label).slice(0, 40),
+      device: config.device,
+      label: this.label,
       // Debug lines only: the runtime never logs a key.
       log: (line) => this.log('debug', line),
     });
@@ -128,7 +145,7 @@ class SodePanelsInstance extends InstanceBase {
         type: 'simple',
         name: `Row ${cell.r} column ${cell.c}: ${text}`,
         style: { text, size: 'auto', color: WHITE, bgcolor: COLOURS[colour] },
-        steps: [{ down: [{ actionId: 'press', options: { row: cell.r, col: cell.c } }], up: [] }],
+        steps: [{ down: [{ actionId: 'press', options: { row: cell.r, col: cell.c } }], up: [{ actionId: 'release', options: { row: cell.r, col: cell.c } }] }],
         feedbacks: [{ feedbackId: 'look', options: { row: cell.r, col: cell.c } }],
       };
     }
