@@ -1,6 +1,7 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
 import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
+import { createHold } from './hold.js';
 import { deviceName, startInstance } from './instance.js';
 import { COMPANION_GRID, visibleSquares } from './visible.js';
 import { createLivePanel } from './live-panel.js';
@@ -26,9 +27,10 @@ export const FAILURE_CODES = Object.keys(FAILS);
 const REFUSALS = { invalid_key: 'key-refused', key_required: 'key-refused', key_expired: 'key-expired', network_not_allowed: 'network-refused', api_off: 'api-off' };
 
 class Refused extends Error {
-  constructor(code) {
+  constructor(code, http = 0) {
     super(code);
     this.fail = code;
+    this.http = http;
   }
 }
 
@@ -67,9 +69,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
 
   // Protected and presets are read only when slow is set; the last read stands between.
   let slowReads = [{}, {}];
+  // False when the key lacks the presets scope (403), so Preset cells say so instead of "no preset".
+  let presetsOpen = true;
+  const readPresets = () =>
+    get('presets').then(
+      (r) => ((presetsOpen = true), r),
+      (e) => ((presetsOpen = e.http !== 403), {}),
+    );
   async function readRouter(slow) {
     const tally = await get('tally');
-    if (slow) slowReads = await Promise.all([soft('protected'), soft('presets')]);
+    if (slow) slowReads = await Promise.all([soft('protected'), readPresets()]);
     env = envFrom(tally, slowReads[0], slowReads[1], panel.rights);
     st = model.applyTally(st, env);
   }
@@ -116,7 +125,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     const body = await res.json().catch(() => ({}));
     if (res.ok) return body;
     const code = REFUSALS[body?.error?.code] || (res.status === 404 ? 'panel-not-found' : 'unreachable');
-    throw new Refused(code);
+    throw new Refused(code, res.status);
   };
 
   async function load() {
@@ -165,7 +174,13 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       }
       case 'take': {
         const armed = model.armed(st, env);
-        return { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
+        const look = { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
+        return st.holdAt ? { ...look, fill: Math.min(1, (now() - st.holdAt) / model.GUARD_HOLD_MS) } : look;
+      }
+      case 'preset': {
+        if (!presetsOpen) return { text: 'Unavailable', colour: 'unavailable', pulse: 0 };
+        const pending = model.presetState(st, cell, env) === 'pending';
+        return { text, colour: pending ? 'preset-pending' : 'preset', pulse: pending ? 1 : 0 };
       }
       case 'current': {
         if (!st.view) return { text: cell.caption || 'Currently', colour: 'current', pulse: 0 };
@@ -179,8 +194,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
 
   const cellAt = (r, c) => r <= grid.rows && c <= grid.cols && drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
 
-  async function sendTake() {
-    const started = model.startTake(st, env, now());
+  async function sendTake(started = model.startTake(st, env, now())) {
     if (!started) return;
     st = started.state;
     changed();
@@ -203,6 +217,21 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
   // One extra tally read after a take, so the keys show what the router did without waiting for the next tick.
   const poll1 = () => readRouter(false).then(changed, () => {});
 
+  const hold = createHold({
+    ms: model.GUARD_HOLD_MS,
+    tick: () => changed(),
+    async due() {
+      hold.stop();
+      const g = model.guardHeld(st, now());
+      st = g.state;
+      changed();
+      if (g.go) await sendTake();
+    },
+  });
+
+  // Instant mode: the press that staged something is the Confirm. A refused press leaves an older failed route staged, so it must not resend.
+  const confirmInstant = () => (st.error ? undefined : sendTake(model.startInstant(st, env, now())));
+
   return {
     async start() {
       if (!host || !port || !panelRef || !key) return set('bad-config');
@@ -214,10 +243,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       stopped = true;
       clearTimeout(timer);
       clearTimeout(pollTimer);
+      hold.stop();
       stopInstance?.();
       clearTimeout(liveTimer);
     },
-    release() {},
+    release() {
+      if (!st.holdAt) return;
+      hold.stop();
+      st = model.guardCancel(st);
+      changed();
+    },
     async press(r, c) {
       const cell = cellAt(r, c);
       if (!cell || status.code !== 'ok') return;
@@ -228,14 +263,24 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
           break;
         case 'source':
           st = model.pressSource(st, cell, env, now());
-          break;
+          changed();
+          return confirmInstant();
+        case 'preset':
+          if (!presetsOpen) return;
+          st = model.pressPreset(st, cell, env, now());
+          changed();
+          return confirmInstant();
         case 'clear':
           st = model.pressClear(st, now());
+          hold.stop();
           break;
         case 'take': {
+          // An unarmed press must not start a guard that a later arming would complete.
+          if (!model.armed(st, env)) return;
           const g = model.guardDown(st, now());
           st = g.state;
           if (g.go) await sendTake();
+          else if (st.holdAt) hold.start();
           break;
         }
         default:
@@ -262,8 +307,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       const cell = cellAt(r, c);
       if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
-      const { colour, pulse, text } = cellLook(cell);
-      return { text: root ? text : '', colour, pulse };
+      const { colour, pulse, text, fill } = cellLook(cell);
+      return { text: root ? text : '', colour, pulse, ...(fill === undefined ? {} : { fill }) };
     },
   };
 }

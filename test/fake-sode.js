@@ -84,6 +84,8 @@ export async function startFakeSode(opts = {}) {
     if (path === '/api/v1/names') return json(fake.names);
     if (path === '/api/v1/tally') return json(fake.tally);
     if (path === '/api/v1/protected') return json(fake.protected);
+    // presetsRefuse = { status, code }: a key without the presets scope.
+    if (path === '/api/v1/presets' && fake.presetsRefuse) return apiError(res, fake.presetsRefuse.status, fake.presetsRefuse.code);
     if (path === '/api/v1/presets') return json(fake.presets);
     if (path === '/api/v1/takes' && req.method === 'POST') {
       let raw = '';
