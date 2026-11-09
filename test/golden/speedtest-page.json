@@ -146,8 +146,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_1_1_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_1_1_bl)",
@@ -467,8 +467,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_1_2_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_1_2_bl)",
@@ -788,8 +788,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_1_3_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_1_3_bl)",
@@ -1109,8 +1109,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_1_4_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_1_4_bl)",
@@ -1430,8 +1430,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_1_5_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_1_5_bl)",
@@ -1753,8 +1753,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_2_1_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_2_1_bl)",
@@ -2074,8 +2074,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_2_2_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_2_2_bl)",
@@ -2395,8 +2395,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_2_3_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_2_3_bl)",
@@ -2716,8 +2716,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_2_4_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_2_4_bl)",
@@ -3037,8 +3037,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_2_5_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_2_5_bl)",
@@ -3360,8 +3360,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_3_1_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_3_1_bl)",
@@ -3681,8 +3681,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_3_2_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_3_2_bl)",
@@ -4002,8 +4002,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_3_3_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_3_3_bl)",
@@ -4323,8 +4323,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_3_4_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_3_4_bl)",
@@ -4644,8 +4644,8 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 30,
-                  "isExpression": false
+                  "value": "$(sode:key_3_5_op)",
+                  "isExpression": true
                 },
                 "x": {
                   "value": "$(sode:key_3_5_bl)",

@@ -266,7 +266,7 @@ test('before the panel loads, the colour variables hold a blank background and w
   for (const id of ['key_1_1_fg', 'key_4_8_fg']) assert.equal(v[id], WHITE);
 });
 
-const PICTURE_VARIABLES = ['pic', 'inset', 'bl', 'bt', 'br', 'bb'];
+const PICTURE_VARIABLES = ['pic', 'op', 'inset', 'bl', 'bt', 'br', 'bb'];
 
 test('every key square has a Key picture and Border variables holding plain values', async () => {
   const { host } = await connect();
@@ -277,6 +277,7 @@ test('every key square has a Key picture and Border variables holding plain valu
       for (const suffix of PICTURE_VARIABLES) assert.ok(`key_${r}_${c}_${suffix}` in defs, `key_${r}_${c}_${suffix}`);
       assert.equal(v[`key_${r}_${c}_pic`], '', 'no picture yet');
       assert.equal(v[`key_${r}_${c}_inset`], 0, 'no inset plate');
+      assert.equal(v[`key_${r}_${c}_op`], 100);
       for (const side of ['bl', 'bt', 'br', 'bb']) assert.equal(v[`key_${r}_${c}_${side}`], 0);
     }
   }

@@ -9,9 +9,10 @@ export const squareVariable = (r, c) => `key_${r}_${c}`;
 // Names of the colour variables (0xRRGGBB numbers) that the generated buttons' layer expressions read.
 export const squareBgVariable = (r, c) => `${squareVariable(r, c)}_bg`;
 export const squareFgVariable = (r, c) => `${squareVariable(r, c)}_fg`;
-// Picture variables: the Key picture (base64 image, empty when none), 1 when the Border and inset plate are drawn, and
-// the Border width in percent of the key on each side (left, top, right, bottom).
+// Picture variables: the Key picture (base64 image, empty when none), its opacity in percent, 1 when the Border and inset
+// plate are drawn, and the Border width in percent of the key on each side (left, top, right, bottom).
 export const squarePictureVariable = (r, c) => `${squareVariable(r, c)}_pic`;
+export const squareOpacityVariable = (r, c) => `${squareVariable(r, c)}_op`;
 export const squareInsetVariable = (r, c) => `${squareVariable(r, c)}_inset`;
 export const SIDES = ['bl', 'bt', 'br', 'bb'];
 export const squareSideVariable = (r, c, side) => `${squareVariable(r, c)}_${side}`;

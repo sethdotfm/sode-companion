@@ -23,7 +23,7 @@ Never paste a key into chat or commit it. The Connection holds it as a Companion
 - The Take key lights once something valid is staged. Take applies every staged change at once. Clear drops the view and the staged changes. After a take the destination stays viewed, so its Source keys and the Current Destination key keep showing its source. With the double-press guard, the Take key reads "Press again" for 1.5 seconds after the first press.
 - Every key shows Offline and ignores presses while Sode or the router is unreachable. The connection status then reads Connection Failure.
 
-Variables hold the viewed destination, its current source, the staged count, the last error, the router status, and for each key square its text (`key_<row>_<col>`), background colour (`key_<row>_<col>_bg`) and text colour (`key_<row>_<col>_fg`). The colours are numbers (0xRRGGBB). Generated pages read these variables in layer expressions, so they carry no feedback. Presets and the Look feedback are for building buttons by hand.
+Variables hold the viewed destination, its current source, the staged count, the last error, the router status, and for each key square its text (`key_<row>_<col>`), background colour (`key_<row>_<col>_bg`) and text colour (`key_<row>_<col>_fg`). The colours are numbers (0xRRGGBB). Each square also has its Key picture (`key_<row>_<col>_pic`), the picture's opacity in percent (`_op`: 30 for Artwork under a label, 100 otherwise), a `_inset` flag and Border widths (`_bl`, `_bt`, `_br`, `_bb`). Generated pages read these variables in layer expressions, so they carry no feedback. Presets and the Look feedback are for building buttons by hand.
 
 ## Known limits
 

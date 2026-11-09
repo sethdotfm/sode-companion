@@ -277,7 +277,7 @@ test('buttons draw a Border and inset plate, a picture layer and the label from 
   assert.deepEqual(plate.color, { value: COLOURS.blank, isExpression: false });
   const picture = layer(btn, 'image0');
   assert.deepEqual(picture.base64Image, expr(k('pic')));
-  assert.deepEqual(picture.opacity, { value: 30, isExpression: false });
+  assert.deepEqual(picture.opacity, expr(k('op')));
   for (const l of [plate, picture])
     for (const [field, want] of Object.entries(geometry)) assert.deepEqual(l[field], want, `${l.id}.${field}`);
   assert.deepEqual(layer(btn, 'box0').color, expr(k('bg')));
@@ -365,7 +365,7 @@ test('every variable a generated button reads is defined by the module for the s
         }
       }
     }
-    assert.equal(read, 255);
+    assert.equal(read, 270);
   } finally {
     rt.stop();
     await fake.close();

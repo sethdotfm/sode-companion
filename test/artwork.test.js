@@ -612,3 +612,144 @@ test('a group cut by the grid edge has no Border on the cut sides', async () => 
   assert.deepEqual(sides(host.values, 4, 7), [8, 8, 0, 0]);
   assert.deepEqual(sides(host.values, 4, 8), [0, 8, 0, 0]);
 });
+
+const op = (host, r, c) => host.values[`key_${r}_${c}_op`];
+
+test('Artwork is drawn at 30%, at full strength once its text is hidden; an Icon and a plain key are always full strength', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'source', n: 0, art: ART },
+    { r: 1, c: 2, kind: 'source', n: 1, art: ART, hideText: true },
+    { r: 1, c: 3, kind: 'source', n: 2, art: 'icon:camera' },
+    { r: 1, c: 4, kind: 'source', n: 3, art: 'icon:camera', hideText: true },
+    { r: 1, c: 5, kind: 'source', n: 0 },
+  ];
+  const { host } = await connect({ cells });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'the Artwork pictures');
+  assert.deepEqual(
+    [1, 2, 3, 4, 5].map((c) => op(host, 1, c)),
+    [30, 100, 100, 100, 100],
+  );
+  assert.equal(op(host, 3, 5), 100, 'a blank square');
+});
+
+test('a merged Artwork Cell has one strength on every square', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, rs: 1, cs: 2 }];
+  const { host } = await connect({ cells });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'both pictures');
+  assert.deepEqual([op(host, 1, 1), op(host, 1, 2)], [30, 30]);
+});
+
+const glyphs = (host, r, c) => [...iconSvg(host, r, c).matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+const fillOf = (host, r, c) => /<text[^>]*fill="(#[0-9a-f]{6})"/.exec(iconSvg(host, r, c))?.[1];
+const fontOf = (host, r, c) => Number(/<text[^>]*font-size="([\d.]+)"/.exec(iconSvg(host, r, c))?.[1]);
+
+test('Icon B alone is a text glyph in the key text colour, with no sprite, Border or Artwork request', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, artB: '7' }];
+  const { host, fake } = await connect({ cells });
+  await until(() => pic(host, 1, 1), 'the Icon B picture');
+  assert.deepEqual(glyphs(host, 1, 1), ['7']);
+  assert.ok(!iconSvg(host, 1, 1).includes('<path'));
+  assert.equal(fillOf(host, 1, 1), hex(textFor('source')));
+  assert.equal(host.values.key_1_1_inset, 0);
+  assert.equal(op(host, 1, 1), 100);
+  assert.equal(host.values.key_1_1, 'CAM 1');
+  assert.equal(artReads(fake).length, 0);
+});
+
+test('Icon B sits beside Icon A, each narrower than alone, and a two character glyph is smaller than one', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'source', n: 0, artB: 'B' },
+    { r: 1, c: 2, kind: 'source', n: 0, art: 'icon:camera', artB: 'B' },
+    { r: 1, c: 3, kind: 'source', n: 0, art: 'icon:camera', artB: '16' },
+    { r: 1, c: 4, kind: 'source', n: 0, art: 'icon:camera' },
+  ];
+  const { host } = await connect({ cells });
+  await until(() => [1, 2, 3, 4].every((c) => pic(host, 1, c)), 'the pictures');
+  assert.ok(iconSvg(host, 1, 2).includes('<path'));
+  assert.deepEqual(glyphs(host, 1, 2), ['B']);
+  assert.deepEqual(glyphs(host, 1, 3), ['16']);
+  assert.ok(fontOf(host, 1, 2) < fontOf(host, 1, 1), 'beside Icon A the glyph shrinks');
+  assert.ok(fontOf(host, 1, 3) < fontOf(host, 1, 2), 'two characters shrink further');
+  assert.notEqual(iconSvg(host, 1, 2), iconSvg(host, 1, 4), 'Icon A moves aside');
+  assert.deepEqual(glyphs(host, 1, 4), []);
+});
+
+test('hidden text applies to Icon B, which then draws white', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'destination', n: 0 },
+    { r: 1, c: 2, kind: 'source', n: 0, artB: 'Z', hideText: true },
+    { r: 1, c: 3, kind: 'source', n: 1, art: 'icon:camera', artB: '3', hideText: true },
+  ];
+  const { host, rt } = await connect({ cells });
+  await until(() => pic(host, 1, 2) && pic(host, 1, 3), 'the pictures');
+  await rt.press(1, 1);
+  await rt.press(1, 2);
+  await until(() => host.values.key_1_2_bg === COLOURS['source-pending'], 'the pending colour');
+  assert.equal(host.values.key_1_2, '');
+  assert.equal(host.values.key_1_3, '');
+  assert.equal(fillOf(host, 1, 2), hex(0xffffff));
+  assert.equal(fillOf(host, 1, 3), hex(0xffffff));
+  assert.equal(iconStroke(host, 1, 3), hex(0xffffff));
+});
+
+test('the Icon B colour follows the key text colour as the state changes', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'destination', n: 0 },
+    { r: 1, c: 2, kind: 'source', n: 0, artB: 'A' },
+  ];
+  const { host, rt } = await connect({ cells });
+  await until(() => pic(host, 1, 2), 'the picture');
+  const idle = fillOf(host, 1, 2);
+  await rt.press(1, 1);
+  await rt.press(1, 2);
+  await until(() => host.values.key_1_2_bg === COLOURS['source-pending'], 'the pending colour');
+  await until(() => fillOf(host, 1, 2) !== idle, 'the glyph recoloured');
+  assert.equal(fillOf(host, 1, 2), hex(host.values.key_1_2_fg));
+});
+
+test('an Icon B outside 0 to 16 and A to Z draws nothing and leaves the label showing, even with hidden text', async () => {
+  const cells = ['17', '-1', 'a', 'AB', '', 7, null].map((artB, i) => ({ r: 1, c: i + 1, kind: 'source', n: 0, artB, hideText: true }));
+  const { host } = await connect({ cells, panelExtra: { cols: 7 } });
+  await until(() => host.values.key_1_7 !== undefined, 'values');
+  for (let c = 1; c <= 7; c++) {
+    assert.equal(pic(host, 1, c), '', `square ${c}`);
+    assert.equal(host.values[`key_1_${c}`], 'CAM 1');
+  }
+});
+
+test('a merged Icon B Cell spans its group like Icon A, drawing the glyph on every square', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: 'icon:camera', artB: '5', rs: 1, cs: 2 }];
+  const { host } = await connect({ cells });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'both pictures');
+  const view = (c) =>
+    /viewBox="([^"]+)"/
+      .exec(iconSvg(host, 1, c))[1]
+      .split(' ')
+      .map(Number);
+  const [lx, , lw] = view(1);
+  const [rx] = view(2);
+  assert.ok(Math.abs(lx + lw - rx) < 0.01, 'the squares abut');
+  for (const c of [1, 2]) {
+    assert.deepEqual(glyphs(host, 1, c), ['5']);
+    assert.equal(host.values[`key_1_${c}_inset`], 0);
+  }
+});
+
+test('with Artwork, Icon B is not drawn but still hides the text', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, artB: '2', hideText: true }];
+  const { host } = await connect({ cells });
+  await until(() => pic(host, 1, 1), 'the Artwork');
+  assert.ok(!pic(host, 1, 1).startsWith('data:image/svg'));
+  assert.equal(host.values.key_1_1, '');
+});
+
+test('a Cell changed to another Icon B updates its key, and the glyph drops with Offline', async () => {
+  const cell = { r: 1, c: 1, kind: 'source', n: 0 };
+  const { host, fake, rt } = await connect({ cells: [{ ...cell, artB: '1' }], over: { liveMs: 15, pollMs: 15 } });
+  await until(() => pic(host, 1, 1), 'the glyph');
+  fake.panel = panelOf([{ ...cell, artB: '2' }], { rev: 2 });
+  await until(() => glyphs(host, 1, 1)[0] === '2', 'the new glyph');
+  fake.status = { router: 'down', routerUp: false, error: true };
+  await until(() => rt.status().code === 'offline', 'Offline');
+  await until(() => pic(host, 1, 1) === '', 'the glyph dropped');
+});

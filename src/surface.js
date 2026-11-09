@@ -7,6 +7,7 @@ import {
   squareBgVariable,
   squareFgVariable,
   squarePictureVariable,
+  squareOpacityVariable,
   squareInsetVariable,
   squareSideVariable,
 } from './visible.js';
@@ -92,6 +93,7 @@ const variableDefinitionsOf = (squares) => {
     defs[squareBgVariable(r, c)] = { name: `Background colour of row ${r} column ${c}` };
     defs[squareFgVariable(r, c)] = { name: `Text colour of row ${r} column ${c}` };
     defs[squarePictureVariable(r, c)] = { name: `Key picture of row ${r} column ${c}` };
+    defs[squareOpacityVariable(r, c)] = { name: `Key picture opacity (%) of row ${r} column ${c}` };
     defs[squareInsetVariable(r, c)] = { name: `Border and inset drawn at row ${r} column ${c} (1 or 0)` };
     for (const side of SIDES) defs[squareSideVariable(r, c, side)] = { name: `Border width (%) ${side} of row ${r} column ${c}` };
   }
@@ -153,6 +155,7 @@ export function createSurface({ runtime, host, label }) {
       // The label sits on the dark inset plate, so it is light whatever the state colour; an Icon key keeps the solid fill.
       out[squareFgVariable(r, c)] = inset ? WHITE : style.color;
       out[squarePictureVariable(r, c)] = look.picture ?? '';
+      out[squareOpacityVariable(r, c)] = look.picture ? (look.opacity ?? 100) : 100;
       out[squareInsetVariable(r, c)] = inset;
       for (const side of SIDES) out[squareSideVariable(r, c, side)] = look.picture && (look.edges?.[side] ?? true) ? look.border : 0;
     }

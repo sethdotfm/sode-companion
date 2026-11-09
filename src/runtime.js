@@ -11,7 +11,7 @@ import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
 import { withPrefix } from './sode-key.js';
 import { keyPicture, keyPictures, cropSvg, svgDataUrl, MAX_BYTES } from './artwork.js';
-import { iconMarkup } from './icons.js';
+import { iconMarkup, glyphOf, iconSvg } from './icons.js';
 import { textFor, WHITE } from './colours.js';
 
 // namesFrom has no label for a Take cell.
@@ -59,10 +59,8 @@ const NO_PANEL = { rows: 0, cols: 0 };
 const ART_ID = /^a-[0-9a-f]{8}$/;
 // The Border is this share of the key on each side of an Artwork key.
 const BORDER_PERCENT = 8;
-// Lucide's 24 box and stroke, with padding so the Icon sits inside the key. Companion draws the SVG data URL itself.
-const iconSvg = (markup, rgb) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 32 32" fill="none" stroke="#${rgb.toString(16).padStart(6, '0')}" ` +
-  `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
+// Artwork is dimmed so the label stays readable; with the text hidden, and for Icons, nothing sits over the picture.
+const ARTWORK_OPACITY = 30;
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
 
@@ -286,17 +284,17 @@ export function createRuntime({
       return entry.groups.get(id);
     });
   };
-  const iconAt = (cell, r, c, markup, rgb) => {
-    const svg = iconSvg(markup, rgb);
+  const iconAt = (cell, r, c, markup, glyph, rgb) => {
+    const svg = iconSvg(markup, glyph, rgb);
     return squareOf(cell, r, c, (rs, cs) => (rs === 1 && cs === 1 ? [[svgDataUrl(svg)]] : cropSvg(svg, { rs, cs, border: 0 })));
   };
   const edgesOf = (cell, r, c) => {
     const { rs, cs } = sizeOf(cell);
     return { bl: c === cell.c, bt: r === cell.r, br: c === cell.c + cs - 1, bb: r === cell.r + rs - 1 };
   };
-  // Sode hides text only under art, so a Cell with no art string keeps its label. Any art string counts, valid or not, so a
-  // bad id or icon name does not bring the label back.
-  const textHidden = (cell) => cell.hideText === true && typeof cell.art === 'string' && cell.art !== '';
+  // Sode hides text only under art or a valid Icon B, so a Cell with neither keeps its label. Any art string counts, valid or
+  // not, so a bad id or icon name does not bring the label back.
+  const textHidden = (cell) => cell.hideText === true && ((typeof cell.art === 'string' && cell.art !== '') || glyphOf(cell) !== '');
 
   // Fetches the Artwork the drawn Cells name, and drops pictures no Cell names any more.
   function syncArtwork(p) {
@@ -591,7 +589,9 @@ export function createRuntime({
       const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
       const picture = artworkAt(cell, r, c);
       const icon = iconOf(cell);
-      const iconPicture = icon && iconAt(cell, r, c, icon, cell.hideText === true ? WHITE : textFor(colour));
+      // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
+      const glyph = artIdOf(cell) ? '' : glyphOf(cell);
+      const iconPicture = (icon || glyph) && iconAt(cell, r, c, icon, glyph, cell.hideText === true ? WHITE : textFor(colour));
       // A Result, refusal or "Press again" still speaks over hidden text.
       const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm';
       return {
@@ -599,9 +599,11 @@ export function createRuntime({
         colour,
         pulse: pulse ? timing.phase() : 0,
         ...(fill === undefined ? {} : { fill }),
-        ...(picture ? { picture, border: BORDER_PERCENT, edges: edgesOf(cell, r, c) } : {}),
+        ...(picture
+          ? { picture, border: BORDER_PERCENT, edges: edgesOf(cell, r, c), opacity: textHidden(cell) ? 100 : ARTWORK_OPACITY }
+          : {}),
         // An Icon keeps the solid fill, so it has no Border.
-        ...(iconPicture ? { picture: iconPicture, border: 0 } : {}),
+        ...(iconPicture ? { picture: iconPicture, border: 0, opacity: 100 } : {}),
       };
     },
   };

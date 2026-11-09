@@ -7,6 +7,7 @@ import {
   squareBgVariable,
   squareFgVariable,
   squarePictureVariable,
+  squareOpacityVariable,
   squareInsetVariable,
   squareSideVariable,
 } from '../visible.js';
@@ -23,7 +24,7 @@ const GEOMETRY = { x: val(0), y: val(0), width: val(100), height: val(100) };
 const LAYER = (id, name, type, pinnedProperties) => ({ id, name, usage: 'auto', type, ...(pinnedProperties ? { pinnedProperties } : {}) });
 
 // The Border widths shrink the inset plate and the picture to one frame; all zero means the whole key.
-function layersOf({ text, bg, fg, pic, inset, bl, bt, br, bb }) {
+function layersOf({ text, bg, fg, pic, op, inset, bl, bt, br, bb }) {
   const frame = {
     x: expression(bl),
     y: expression(bt),
@@ -52,7 +53,7 @@ function layersOf({ text, bg, fg, pic, inset, bl, bt, br, bb }) {
     {
       ...LAYER('image0', 'Image', 'image', ['base64Image', 'halign', 'valign']),
       enabled: val(true),
-      opacity: val(30),
+      opacity: expression(op),
       ...GEOMETRY,
       ...frame,
       rotation: val(0),
@@ -89,6 +90,7 @@ const refs = (label, r, c) => {
     bg: ref(squareBgVariable(r, c)),
     fg: ref(squareFgVariable(r, c)),
     pic: ref(squarePictureVariable(r, c)),
+    op: ref(squareOpacityVariable(r, c)),
     inset: ref(squareInsetVariable(r, c)),
     bl,
     bt,

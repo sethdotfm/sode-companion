@@ -37,8 +37,12 @@ An uploaded image that a Cell names by id. A key with Artwork shows it inset und
 _Avoid_: Image, thumbnail
 
 **Icon**:
-A built-in icon that a Cell names with an `icon:` prefix. A key with an Icon keeps the solid state colour and draws the Icon over it in the key's text colour.
+A built-in icon that a Cell names with an `icon:` prefix, also called Icon A. A key with an Icon keeps the solid state colour and draws the Icon over it at full strength in the key's text colour, or white when the text is hidden.
 _Avoid_: Glyph, symbol
+
+**Icon B**:
+A glyph, 0 to 16 or A to Z, that a Cell carries as `artB`. It is drawn as text beside the Icon (Icon A) in the same colour, and alone when the Cell has no Icon. It counts as a picture for hidden text.
+_Avoid_: Number badge, second icon
 
 **Border**:
 The state colour drawn as a frame around the picture of a key square with Artwork. A merged Cell has it on the group's outer edges only.
