@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 import { pulseLevel } from '../src/timing.js';
+import { styleOf, COLOURS } from '../src/surface.js';
 import { fakeClock } from './fake-clock.js';
 
 const open = [];
@@ -74,7 +75,7 @@ test('with nothing staged, pending or armed the runtime schedules no pulse updat
   await press(rt, SRC2);
   n = 0;
   clock.advance(5000);
-  assert.equal(n, 10);
+  assert.equal(n, 15);
   await press(rt, CLEAR);
   assert.equal(clock.pending(), 0);
   n = 0;
@@ -82,20 +83,20 @@ test('with nothing staged, pending or armed the runtime schedules no pulse updat
   assert.equal(n, 0);
 });
 
-test('staged, pending and armed keys step through eight 500 ms phases and wrap', async () => {
+test('staged, pending and armed keys step through four 333 ms phases and wrap', async () => {
   const { rt, clock } = await connect();
   await press(rt, DST_A);
   await press(rt, SRC2);
   const seen = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 5; i++) {
     const phases = [DST_A, SRC2, TAKE].map((k) => look(rt, k).pulse);
     assert.equal(new Set(phases).size, 1);
     seen.push(phases[0]);
-    clock.advance(499);
+    clock.advance(332);
     assert.equal(look(rt, TAKE).pulse, phases[0]);
     clock.advance(1);
   }
-  assert.deepEqual(seen, [1, 2, 3, 4, 5, 6, 7, 8, 1]);
+  assert.deepEqual(seen, [1, 2, 3, 4, 1]);
   assert.equal(look(rt, SRC1).pulse, 0);
   assert.equal(look(rt, DST_B).pulse, 0);
 });
@@ -106,7 +107,7 @@ test('a pulse step notifies listeners so the surface redraws', async () => {
   await press(rt, SRC2);
   let n = 0;
   rt.onChange(() => n++);
-  clock.advance(1500);
+  clock.advance(999);
   assert.equal(n, 3);
 });
 
@@ -248,8 +249,78 @@ test('the idle clear never runs during a take', async () => {
 });
 
 test('the pulse breathes between 72% and 100% of the state colour', () => {
-  const levels = [1, 2, 3, 4, 5, 6, 7, 8].map(pulseLevel);
+  const levels = [1, 2, 3, 4].map(pulseLevel);
   assert.equal(Math.min(...levels), 0.72);
   assert.equal(Math.max(...levels), 1);
   assert.ok(levels.every((l) => l >= 0.72 && l <= 1));
+});
+
+test('a double-press Take shows "Press\\nagain" in its own colour for 1.5 seconds, then goes back to armed', async () => {
+  const { rt, clock } = await connect({}, { settings: { guard: 'double' } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  assert.equal(look(rt, TAKE).colour, 'take-armed');
+  await press(rt, TAKE);
+  assert.equal(look(rt, TAKE).text, 'Press\nagain');
+  assert.equal(look(rt, TAKE).colour, 'take-confirm');
+  let n = 0;
+  rt.onChange(() => n++);
+  clock.advance(1500);
+  assert.equal(look(rt, TAKE).colour, 'take-confirm');
+  clock.advance(1);
+  assert.ok(n > 0, 'the lapse redraws the key');
+  assert.equal(look(rt, TAKE).colour, 'take-armed');
+  assert.equal(look(rt, TAKE).text, 'Take');
+});
+
+test('the second press fires the take and the confirm look goes', async () => {
+  const { rt, fake, clock } = await connect({}, { settings: { guard: 'double' } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  clock.advance(700);
+  await press(rt, TAKE);
+  assert.equal(fake.takes.length, 1);
+  assert.notEqual(look(rt, TAKE).colour, 'take-confirm');
+  assert.equal(look(rt, TAKE).text, 'Take');
+});
+
+test('the confirm look reaches the key colour variables through styleOf', async () => {
+  const { rt } = await connect({}, { settings: { guard: 'double' } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  const style = styleOf(look(rt, TAKE));
+  assert.equal(style.text, 'Press\nagain');
+  assert.notEqual(style.bgcolor, styleOf({ text: '', colour: 'take-armed', pulse: 0 }).bgcolor);
+  assert.ok(COLOURS['take-confirm'] !== undefined);
+  assert.notEqual(COLOURS['take-confirm'], COLOURS['take-armed']);
+});
+
+test('a hold guard keeps the armed look and its fill, with no confirm text', async () => {
+  const { rt } = await connect({}, { settings: { guard: 'hold' } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  assert.equal(look(rt, TAKE).colour, 'take-armed');
+  assert.equal(look(rt, TAKE).text, 'Take');
+  assert.equal(look(rt, TAKE).fill, 0);
+  rt.release();
+});
+
+test('after a take the view survives until 30 idle seconds, then view and plan clear', async () => {
+  const { rt, clock } = await connect();
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  clock.advance(20_000);
+  await press(rt, TAKE);
+  assert.equal(rt.variables().staged, 0);
+  clock.advance(1_501);
+  assert.equal(look(rt, DST_A).colour, 'destination-view');
+  assert.equal(rt.variables().viewed, 'MON A');
+  clock.advance(28_000);
+  assert.equal(rt.variables().viewed, 'MON A');
+  clock.advance(1_000);
+  assert.equal(rt.variables().viewed, '');
+  assert.equal(look(rt, DST_A).colour, 'destination');
 });
