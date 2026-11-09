@@ -286,3 +286,75 @@ test('SVG Artwork follows the same Border, inset and Offline rules as raster Art
   await until(() => rt.status().code === 'offline', 'Offline');
   await until(() => pic(host, 1, 1) === '' && pic(host, 1, 2) === '', 'both dropped');
 });
+
+const iconSvg = (host, r, c) => svgBytes(pic(host, r, c));
+const iconStroke = (host, r, c) => /stroke="(#[0-9a-f]{6})"/.exec(iconSvg(host, r, c))?.[1];
+const hex = (rgb) => `#${rgb.toString(16).padStart(6, '0')}`;
+
+test('an Icon Cell gets its Icon as a drawing in the text colour, over the solid fill and with no Border or Artwork request', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: 'icon:camera' }];
+  const { host, fake } = await connect({ cells });
+  await until(() => pic(host, 1, 1), 'the Icon');
+  assert.match(iconSvg(host, 1, 1), /^<svg [^>]*viewBox="[^"]+"/);
+  assert.ok(iconSvg(host, 1, 1).includes('<path'));
+  assert.equal(iconStroke(host, 1, 1), hex(0xffffff));
+  const v = host.values;
+  assert.equal(v.key_1_1_inset, 0);
+  assert.deepEqual([v.key_1_1_bl, v.key_1_1_bt, v.key_1_1_br, v.key_1_1_bb], [0, 0, 0, 0]);
+  assert.equal(v.key_1_1_bg, COLOURS.source);
+  assert.equal(v.key_1_1, 'CAM 1');
+  assert.equal(artReads(fake).length, 0);
+});
+
+test('the Icon colour follows the key text colour as the state changes', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'destination', n: 0 },
+    { r: 1, c: 2, kind: 'source', n: 0, art: 'icon:camera' },
+  ];
+  const { host, rt } = await connect({ cells });
+  await until(() => pic(host, 1, 2), 'the Icon');
+  const idle = iconStroke(host, 1, 2);
+  await rt.press(1, 1);
+  await rt.press(1, 2);
+  await until(() => host.values.key_1_2_bg === COLOURS['source-pending'], 'the pending colour');
+  await until(() => iconStroke(host, 1, 2) !== idle, 'the Icon recoloured');
+  assert.equal(iconStroke(host, 1, 2), hex(host.values.key_1_2_fg));
+  assert.equal(host.values.key_1_2_inset, 0);
+});
+
+test('a hidden-text Icon Cell draws a white Icon and an empty label, whatever the state colour', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'destination', n: 0 },
+    { r: 1, c: 2, kind: 'source', n: 0, art: 'icon:camera', hideText: true },
+  ];
+  const { host, rt } = await connect({ cells });
+  await until(() => pic(host, 1, 2), 'the Icon');
+  await rt.press(1, 1);
+  await rt.press(1, 2);
+  await until(() => host.values.key_1_2_bg === COLOURS['source-pending'], 'the pending colour');
+  assert.equal(host.values.key_1_2, '');
+  assert.equal(iconStroke(host, 1, 2), hex(0xffffff));
+});
+
+test('an unknown icon name leaves the key plain', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: 'icon:no-such-icon', hideText: true }];
+  const { host, fake } = await connect({ cells });
+  await until(() => host.values.key_1_1 !== undefined, 'values');
+  assert.equal(pic(host, 1, 1), '');
+  assert.equal(host.values.key_1_1_inset, 0);
+  assert.equal(host.values.key_1_1, 'CAM 1');
+  assert.equal(artReads(fake).length, 0);
+});
+
+test('an Icon drops with Offline, and a Cell changed from Artwork to an Icon swaps its picture', async () => {
+  const cell = { r: 1, c: 1, kind: 'source', n: 0 };
+  const { host, fake, rt } = await connect({ cells: [{ ...cell, art: ART }], over: { liveMs: 15, pollMs: 15 } });
+  await until(() => pic(host, 1, 1), 'the Artwork');
+  assert.equal(host.values.key_1_1_inset, 1);
+  fake.panel = panelOf([{ ...cell, art: 'icon:camera' }], { rev: 2 });
+  await until(() => pic(host, 1, 1).startsWith('data:image/svg+xml'), 'the Icon');
+  assert.equal(host.values.key_1_1_inset, 0);
+  fake.status = { router: 'down', routerUp: false, error: true };
+  await until(() => rt.status().code === 'offline', 'Offline');
+  await until(() => pic(host, 1, 1) === '', 'the Icon dropped');
+});

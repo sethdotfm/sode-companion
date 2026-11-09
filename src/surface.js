@@ -151,7 +151,7 @@ export function createSurface({ runtime, host, label }) {
       out[squareBgVariable(r, c)] = style.bgcolor;
       out[squareFgVariable(r, c)] = style.color;
       out[squarePictureVariable(r, c)] = look.picture ?? '';
-      out[squareInsetVariable(r, c)] = look.picture ? 1 : 0;
+      out[squareInsetVariable(r, c)] = look.picture && look.border ? 1 : 0;
       for (const side of SIDES) out[squareSideVariable(r, c, side)] = look.picture ? look.border : 0;
     }
     return out;

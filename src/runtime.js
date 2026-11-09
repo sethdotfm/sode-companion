@@ -12,6 +12,7 @@ import { flashWord } from './flash.js';
 import { withPrefix } from './sode-key.js';
 import { keyPicture } from './artwork.js';
 import { iconMarkup } from './icons.js';
+import { textFor, WHITE } from './colours.js';
 
 // namesFrom has no label for a Take cell.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -58,6 +59,13 @@ const NO_PANEL = { rows: 0, cols: 0 };
 const ART_ID = /^a-[0-9a-f]{8}$/;
 // The Border is this share of the key on each side of an Artwork key.
 const BORDER_PERCENT = 8;
+// Lucide's 24 box and stroke, with padding so the Icon sits inside the key. Companion draws the SVG data URL itself.
+const iconPicture = (markup, rgb) => {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 32 32" fill="none" stroke="#${rgb.toString(16).padStart(6, '0')}" ` +
+    `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+};
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
 
@@ -264,6 +272,8 @@ export function createRuntime({
   // Only a Cell on one key square shows Artwork for now.
   const artIdOf = (cell) =>
     typeof cell.art === 'string' && ART_ID.test(cell.art) && (cell.rs ?? 1) === 1 && (cell.cs ?? 1) === 1 ? cell.art : '';
+  // Icons draw on one key square for now, like Artwork.
+  const iconOf = (cell) => ((cell.rs ?? 1) === 1 && (cell.cs ?? 1) === 1 ? iconMarkup(cell.art) : undefined);
   // Sode hides text only under artwork, so a Cell never ends up with neither.
   const textHidden = (cell) => cell.hideText === true && (ART_ID.test(cell.art) || iconMarkup(cell.art) !== undefined);
 
@@ -554,6 +564,7 @@ export function createRuntime({
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
       const picture = pictures.get(artIdOf(cell));
+      const icon = iconOf(cell);
       // A Result, refusal or "Press again" still speaks over hidden text.
       const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm';
       return {
@@ -562,6 +573,8 @@ export function createRuntime({
         pulse: pulse ? timing.phase() : 0,
         ...(fill === undefined ? {} : { fill }),
         ...(picture ? { picture, border: BORDER_PERCENT } : {}),
+        // An Icon keeps the solid fill, so it has no Border.
+        ...(icon ? { picture: iconPicture(icon, cell.hideText === true ? WHITE : textFor(colour)), border: 0 } : {}),
       };
     },
   };
