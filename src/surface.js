@@ -1,6 +1,15 @@
 // The Companion shell's logic without Companion's classes, so tests can drive it with a fake host.
 // main.js is the only file that imports @companion-module/base.
-import { COMPANION_GRID, squareVariable, squareBgVariable, squareFgVariable } from './visible.js';
+import {
+  COMPANION_GRID,
+  SIDES,
+  squareVariable,
+  squareBgVariable,
+  squareFgVariable,
+  squarePictureVariable,
+  squareInsetVariable,
+  squareSideVariable,
+} from './visible.js';
 import { pulseLevel } from './timing.js';
 import { COLOURS, textOn, textFor } from './colours.js';
 
@@ -82,6 +91,9 @@ const variableDefinitionsOf = (squares) => {
     defs[squareVariable(r, c)] = { name: `Text of row ${r} column ${c}` };
     defs[squareBgVariable(r, c)] = { name: `Background colour of row ${r} column ${c}` };
     defs[squareFgVariable(r, c)] = { name: `Text colour of row ${r} column ${c}` };
+    defs[squarePictureVariable(r, c)] = { name: `Key picture of row ${r} column ${c}` };
+    defs[squareInsetVariable(r, c)] = { name: `Border and inset drawn at row ${r} column ${c} (1 or 0)` };
+    for (const side of SIDES) defs[squareSideVariable(r, c, side)] = { name: `Border width (%) ${side} of row ${r} column ${c}` };
   }
   return defs;
 };
@@ -138,6 +150,9 @@ export function createSurface({ runtime, host, label }) {
       out[squareVariable(r, c)] ??= look.text;
       out[squareBgVariable(r, c)] = style.bgcolor;
       out[squareFgVariable(r, c)] = style.color;
+      out[squarePictureVariable(r, c)] = '';
+      out[squareInsetVariable(r, c)] = 0;
+      for (const side of SIDES) out[squareSideVariable(r, c, side)] = 0;
     }
     return out;
   };

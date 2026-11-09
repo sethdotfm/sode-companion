@@ -170,20 +170,22 @@ test('a generated button has the real export layer set, keys and wrapped values'
   assert.equal(made.type, real.type);
   assert.deepEqual(
     made.style.layers.map((l) => l.id),
-    real.style.layers.map((l) => l.id),
+    ['canvas', 'box0', 'box1', 'image0', 'text0'],
   );
-  for (const [i, l] of real.style.layers.entries()) {
-    const got = made.style.layers[i];
-    assert.deepEqual(Object.keys(got), Object.keys(l), l.id);
-    for (const k of ['name', 'usage', 'type', 'pinnedProperties']) assert.deepEqual(got[k], l[k], `${l.id}.${k}`);
-    // Colours are expressions here and plain numbers in the export; only that one field differs in shape.
+  // The inset plate is a second Background box, so it is checked against the real box layer.
+  const realOf = (id) => real.style.layers.find((l) => l.id === (id === 'box1' ? 'box0' : id));
+  for (const got of made.style.layers) {
+    const l = realOf(got.id);
+    assert.deepEqual(Object.keys(got), Object.keys(l), got.id);
+    for (const k of ['usage', 'type', 'pinnedProperties']) assert.deepEqual(got[k], l[k], `${got.id}.${k}`);
+    // Expression fields are plain values in the export; only their value type and isExpression flag differ.
     const plain = structuredClone(got);
-    if (l.id === 'box0' || l.id === 'text0') {
-      assert.equal(got.color.isExpression, true, `${l.id}.color`);
-      assert.equal(typeof got.color.value, 'string', `${l.id}.color`);
-      plain.color = l.color;
+    for (const [k, v] of Object.entries(got)) {
+      if (!v?.isExpression) continue;
+      assert.equal(typeof v.value, 'string', `${got.id}.${k}`);
+      plain[k] = l[k];
     }
-    assert.deepEqual(shapeOf(plain), shapeOf(l), l.id);
+    assert.deepEqual(shapeOf(plain), shapeOf(l), got.id);
   }
   assert.deepEqual(shapeOf(made.options), shapeOf(real.options));
   assert.deepEqual(Object.keys(made.steps), Object.keys(real.steps));
@@ -260,6 +262,29 @@ test('colours come from layer expressions on the key square colour variables', (
   }
 });
 
+test('buttons draw a Border and inset plate, a picture layer and the label from expressions on the picture variables', () => {
+  const doc = generatePage(panelOf(FULL), 'c', { label: 'sode' });
+  const btn = controlAt(doc, 2, 3);
+  const k = (suffix) => `$(sode:key_2_3_${suffix})`;
+  const geometry = {
+    x: expr(k('bl')),
+    y: expr(k('bt')),
+    width: expr(`100 - ${k('bl')} - ${k('br')}`),
+    height: expr(`100 - ${k('bt')} - ${k('bb')}`),
+  };
+  const plate = layer(btn, 'box1');
+  assert.deepEqual(plate.opacity, expr(`100 * ${k('inset')}`));
+  assert.deepEqual(plate.color, { value: COLOURS.blank, isExpression: false });
+  const picture = layer(btn, 'image0');
+  assert.deepEqual(picture.base64Image, expr(k('pic')));
+  assert.deepEqual(picture.opacity, { value: 30, isExpression: false });
+  for (const l of [plate, picture])
+    for (const [field, want] of Object.entries(geometry)) assert.deepEqual(l[field], want, `${l.id}.${field}`);
+  assert.deepEqual(layer(btn, 'box0').color, expr(k('bg')));
+  assert.deepEqual(layer(btn, 'box0').width.value, 100, 'the Border plate fills the key');
+  assert.equal(layer(btn, 'text0').text.value, '$(sode:key_2_3)');
+});
+
 test('the core imports nothing that needs Node', () => {
   const seen = new Set();
   const walk = (url) => {
@@ -326,7 +351,11 @@ test('every variable a generated button reads is defined by the module for the s
     let read = 0;
     for (const row of Object.values(doc.page.controls)) {
       for (const btn of Object.values(row)) {
-        const fields = [layer(btn, 'text0').text.value, layer(btn, 'text0').color.value, layer(btn, 'box0').color.value];
+        const fields = btn.style.layers.flatMap((l) =>
+          Object.values(l)
+            .filter((v) => typeof v?.value === 'string')
+            .map((v) => v.value),
+        );
         for (const f of fields) {
           for (const [, ref] of f.matchAll(/\$\(sode:([^)]+)\)/g)) {
             assert.ok(ref in defs, `${ref} is not defined`);
@@ -336,7 +365,7 @@ test('every variable a generated button reads is defined by the module for the s
         }
       }
     }
-    assert.equal(read, 45);
+    assert.equal(read, 255);
   } finally {
     rt.stop();
     await fake.close();

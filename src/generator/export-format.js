@@ -1,6 +1,15 @@
 // The only file that knows Companion's page export shape, matched to a Companion 5.1.2 one-page export
 // (test/fixtures/speedtest-export.companionconfig). Keep all format wrapping here.
-import { squareVariable, squareBgVariable, squareFgVariable } from '../visible.js';
+import { COLOURS } from '../colours.js';
+import {
+  SIDES,
+  squareVariable,
+  squareBgVariable,
+  squareFgVariable,
+  squarePictureVariable,
+  squareInsetVariable,
+  squareSideVariable,
+} from '../visible.js';
 
 export const EXPORT_VERSION = 12;
 export const COMPANION_BUILD = '5.1.2+10019-stable-98d5d4e1a1';
@@ -13,28 +22,41 @@ const expression = (value) => ({ value, isExpression: true });
 const GEOMETRY = { x: val(0), y: val(0), width: val(100), height: val(100) };
 const LAYER = (id, name, type, pinnedProperties) => ({ id, name, usage: 'auto', type, ...(pinnedProperties ? { pinnedProperties } : {}) });
 
-function layersOf(text, bg, fg) {
+// The Border widths shrink the inset plate and the picture to one frame; all zero means the whole key.
+function layersOf({ text, bg, fg, pic, inset, bl, bt, br, bb }) {
+  const frame = {
+    x: expression(bl),
+    y: expression(bt),
+    width: expression(`100 - ${bl} - ${br}`),
+    height: expression(`100 - ${bt} - ${bb}`),
+  };
+  const box = (id, name, over) => ({
+    ...LAYER(id, name, 'box', ['color']),
+    enabled: val(true),
+    opacity: val(100),
+    ...GEOMETRY,
+    rotation: val(0),
+    color: null,
+    cornerRadius: val(0),
+    borderWidth: val(0),
+    borderColor: val(0),
+    borderPosition: val('inside'),
+    ...over,
+  });
   return [
     { ...LAYER('canvas', 'Canvas', 'canvas'), decoration: val('default'), showStatusIcons: val('default') },
-    {
-      ...LAYER('box0', 'Background', 'box', ['color']),
-      enabled: val(true),
-      opacity: val(100),
-      ...GEOMETRY,
-      rotation: val(0),
-      color: expression(bg),
-      cornerRadius: val(0),
-      borderWidth: val(0),
-      borderColor: val(0),
-      borderPosition: val('inside'),
-    },
+    // Border plate: the state colour over the whole key.
+    box('box0', 'Background', { color: expression(bg) }),
+    // Dark plate inside the Border, opaque only on keys with Artwork.
+    box('box1', 'Inset', { color: val(COLOURS.blank), opacity: expression(`100 * ${inset}`), ...frame }),
     {
       ...LAYER('image0', 'Image', 'image', ['base64Image', 'halign', 'valign']),
       enabled: val(true),
-      opacity: val(100),
+      opacity: val(30),
       ...GEOMETRY,
+      ...frame,
       rotation: val(0),
-      base64Image: val(null),
+      base64Image: expression(pic),
       halign: val('center'),
       valign: val('center'),
       fillMode: val('fit'),
@@ -59,6 +81,22 @@ function layersOf(text, bg, fg) {
   ];
 }
 
+const refs = (label, r, c) => {
+  const ref = (name) => `$(${label}:${name})`;
+  const [bl, bt, br, bb] = SIDES.map((side) => ref(squareSideVariable(r, c, side)));
+  return {
+    text: ref(squareVariable(r, c)),
+    bg: ref(squareBgVariable(r, c)),
+    fg: ref(squareFgVariable(r, c)),
+    pic: ref(squarePictureVariable(r, c)),
+    inset: ref(squareInsetVariable(r, c)),
+    bl,
+    bt,
+    br,
+    bb,
+  };
+};
+
 // Ids only need to be unique inside the file.
 export function buttonOf({ r, c }, connectionId, label) {
   const at = { row: val(r), col: val(c) };
@@ -72,14 +110,8 @@ export function buttonOf({ r, c }, connectionId, label) {
   });
   return {
     type: 'button-layered',
-    // Colours are variable expressions the module keeps current; a layer field has no static fallback.
-    style: {
-      layers: layersOf(
-        `$(${label}:${squareVariable(r, c)})`,
-        `$(${label}:${squareBgVariable(r, c)})`,
-        `$(${label}:${squareFgVariable(r, c)})`,
-      ),
-    },
+    // Changing fields are variable expressions the module keeps current; a layer field has no static fallback.
+    style: { layers: layersOf(refs(label, r, c)) },
     options: { stepProgression: 'auto', stepExpression: '', rotaryActions: false, canModifyStyleInApis: false, notes: '' },
     feedbacks: [],
     steps: { 0: { action_sets: { down: [action('down')], up: [action('up')] }, options: { runWhileHeld: [] } } },

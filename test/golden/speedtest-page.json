@@ -83,6 +83,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_1_1_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_1_1_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_1_1_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_1_1_bl) - $(sode:key_1_1_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_1_1_bt) - $(sode:key_1_1_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -97,32 +154,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_1_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_1_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_1_bl) - $(sode:key_1_1_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_1_bt) - $(sode:key_1_1_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_1_1_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -362,6 +419,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_1_2_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_1_2_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_1_2_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_1_2_bl) - $(sode:key_1_2_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_1_2_bt) - $(sode:key_1_2_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -376,32 +490,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_2_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_2_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_2_bl) - $(sode:key_1_2_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_2_bt) - $(sode:key_1_2_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_1_2_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -641,6 +755,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_1_3_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_1_3_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_1_3_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_1_3_bl) - $(sode:key_1_3_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_1_3_bt) - $(sode:key_1_3_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -655,32 +826,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_3_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_3_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_3_bl) - $(sode:key_1_3_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_3_bt) - $(sode:key_1_3_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_1_3_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -920,6 +1091,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_1_4_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_1_4_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_1_4_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_1_4_bl) - $(sode:key_1_4_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_1_4_bt) - $(sode:key_1_4_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -934,32 +1162,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_4_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_4_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_4_bl) - $(sode:key_1_4_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_4_bt) - $(sode:key_1_4_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_1_4_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -1199,6 +1427,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_1_5_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_1_5_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_1_5_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_1_5_bl) - $(sode:key_1_5_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_1_5_bt) - $(sode:key_1_5_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -1213,32 +1498,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_5_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_1_5_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_5_bl) - $(sode:key_1_5_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_1_5_bt) - $(sode:key_1_5_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_1_5_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -1480,6 +1765,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_2_1_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_2_1_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_2_1_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_2_1_bl) - $(sode:key_2_1_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_2_1_bt) - $(sode:key_2_1_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -1494,32 +1836,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_1_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_1_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_1_bl) - $(sode:key_2_1_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_1_bt) - $(sode:key_2_1_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_2_1_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -1759,6 +2101,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_2_2_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_2_2_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_2_2_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_2_2_bl) - $(sode:key_2_2_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_2_2_bt) - $(sode:key_2_2_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -1773,32 +2172,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_2_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_2_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_2_bl) - $(sode:key_2_2_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_2_bt) - $(sode:key_2_2_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_2_2_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -2038,6 +2437,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_2_3_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_2_3_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_2_3_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_2_3_bl) - $(sode:key_2_3_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_2_3_bt) - $(sode:key_2_3_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -2052,32 +2508,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_3_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_3_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_3_bl) - $(sode:key_2_3_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_3_bt) - $(sode:key_2_3_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_2_3_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -2317,6 +2773,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_2_4_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_2_4_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_2_4_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_2_4_bl) - $(sode:key_2_4_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_2_4_bt) - $(sode:key_2_4_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -2331,32 +2844,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_4_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_4_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_4_bl) - $(sode:key_2_4_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_4_bt) - $(sode:key_2_4_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_2_4_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -2596,6 +3109,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_2_5_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_2_5_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_2_5_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_2_5_bl) - $(sode:key_2_5_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_2_5_bt) - $(sode:key_2_5_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -2610,32 +3180,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_5_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_2_5_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_5_bl) - $(sode:key_2_5_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_2_5_bt) - $(sode:key_2_5_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_2_5_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -2877,6 +3447,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_3_1_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_3_1_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_3_1_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_3_1_bl) - $(sode:key_3_1_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_3_1_bt) - $(sode:key_3_1_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -2891,32 +3518,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_1_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_1_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_1_bl) - $(sode:key_3_1_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_1_bt) - $(sode:key_3_1_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_3_1_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -3156,6 +3783,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_3_2_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_3_2_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_3_2_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_3_2_bl) - $(sode:key_3_2_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_3_2_bt) - $(sode:key_3_2_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -3170,32 +3854,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_2_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_2_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_2_bl) - $(sode:key_3_2_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_2_bt) - $(sode:key_3_2_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_3_2_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -3435,6 +4119,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_3_3_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_3_3_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_3_3_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_3_3_bl) - $(sode:key_3_3_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_3_3_bt) - $(sode:key_3_3_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -3449,32 +4190,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_3_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_3_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_3_bl) - $(sode:key_3_3_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_3_bt) - $(sode:key_3_3_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_3_3_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -3714,6 +4455,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_3_4_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_3_4_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_3_4_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_3_4_bl) - $(sode:key_3_4_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_3_4_bt) - $(sode:key_3_4_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -3728,32 +4526,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_4_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_4_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_4_bl) - $(sode:key_3_4_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_4_bt) - $(sode:key_3_4_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_3_4_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",
@@ -3993,6 +4791,63 @@
                 }
               },
               {
+                "id": "box1",
+                "name": "Inset",
+                "usage": "auto",
+                "type": "box",
+                "pinnedProperties": [
+                  "color"
+                ],
+                "enabled": {
+                  "value": true,
+                  "isExpression": false
+                },
+                "opacity": {
+                  "value": "100 * $(sode:key_3_5_inset)",
+                  "isExpression": true
+                },
+                "x": {
+                  "value": "$(sode:key_3_5_bl)",
+                  "isExpression": true
+                },
+                "y": {
+                  "value": "$(sode:key_3_5_bt)",
+                  "isExpression": true
+                },
+                "width": {
+                  "value": "100 - $(sode:key_3_5_bl) - $(sode:key_3_5_br)",
+                  "isExpression": true
+                },
+                "height": {
+                  "value": "100 - $(sode:key_3_5_bt) - $(sode:key_3_5_bb)",
+                  "isExpression": true
+                },
+                "rotation": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "color": {
+                  "value": 1118481,
+                  "isExpression": false
+                },
+                "cornerRadius": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderWidth": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderColor": {
+                  "value": 0,
+                  "isExpression": false
+                },
+                "borderPosition": {
+                  "value": "inside",
+                  "isExpression": false
+                }
+              },
+              {
                 "id": "image0",
                 "name": "Image",
                 "usage": "auto",
@@ -4007,32 +4862,32 @@
                   "isExpression": false
                 },
                 "opacity": {
-                  "value": 100,
+                  "value": 30,
                   "isExpression": false
                 },
                 "x": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_5_bl)",
+                  "isExpression": true
                 },
                 "y": {
-                  "value": 0,
-                  "isExpression": false
+                  "value": "$(sode:key_3_5_bt)",
+                  "isExpression": true
                 },
                 "width": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_5_bl) - $(sode:key_3_5_br)",
+                  "isExpression": true
                 },
                 "height": {
-                  "value": 100,
-                  "isExpression": false
+                  "value": "100 - $(sode:key_3_5_bt) - $(sode:key_3_5_bb)",
+                  "isExpression": true
                 },
                 "rotation": {
                   "value": 0,
                   "isExpression": false
                 },
                 "base64Image": {
-                  "value": null,
-                  "isExpression": false
+                  "value": "$(sode:key_3_5_pic)",
+                  "isExpression": true
                 },
                 "halign": {
                   "value": "center",

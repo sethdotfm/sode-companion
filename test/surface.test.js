@@ -265,3 +265,35 @@ test('before the panel loads, the colour variables hold a blank background and w
   for (const id of ['key_1_1_bg', 'key_4_8_bg']) assert.equal(v[id], COLOURS.blank);
   for (const id of ['key_1_1_fg', 'key_4_8_fg']) assert.equal(v[id], WHITE);
 });
+
+const PICTURE_VARIABLES = ['pic', 'inset', 'bl', 'bt', 'br', 'bb'];
+
+test('every key square has a Key picture and Border variables holding plain values', async () => {
+  const { host } = await connect();
+  const defs = lastDefs(host);
+  const v = valuesSoFar(host);
+  for (let r = 1; r <= 3; r++) {
+    for (let c = 1; c <= 5; c++) {
+      for (const suffix of PICTURE_VARIABLES) assert.ok(`key_${r}_${c}_${suffix}` in defs, `key_${r}_${c}_${suffix}`);
+      assert.equal(v[`key_${r}_${c}_pic`], '', 'no picture yet');
+      assert.equal(v[`key_${r}_${c}_inset`], 0, 'no inset plate');
+      for (const side of ['bl', 'bt', 'br', 'bb']) assert.equal(v[`key_${r}_${c}_${side}`], 0);
+    }
+  }
+  assert.ok(!('key_4_1_pic' in defs), 'none past the panel');
+});
+
+test('before the panel loads, the picture variables hold plain values over the default grid', async () => {
+  const clock = fakeClock();
+  const rt = createRuntime({ host: '', port: 0, panel: '', key: '', now: clock.now, timers: clock.timers });
+  const host = hostOf();
+  const surface = createSurface({ runtime: rt, host, label: 'sode' });
+  rt.onChange(surface.sync);
+  await rt.start();
+  const v = valuesSoFar(host);
+  for (const id of ['key_1_1', 'key_4_8']) {
+    assert.equal(v[`${id}_pic`], '');
+    assert.equal(v[`${id}_inset`], 0);
+    assert.ok(`${id}_bl` in lastDefs(host));
+  }
+});

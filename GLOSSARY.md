@@ -32,5 +32,21 @@ _Avoid_: Cell binding, cell id
 The standalone script that reads a Panel from Sode and writes an importable Companion page of buttons bound to a Connection. It is built to be lifted into Sode as a Share feature.
 _Avoid_: Exporter, importer
 
+**Artwork**:
+An uploaded image that a Cell names by id. A key with Artwork shows it inset under the label, framed by a Border.
+_Avoid_: Image, thumbnail
+
+**Icon**:
+A built-in icon that a Cell names with an `icon:` prefix. A key with an Icon keeps the solid state colour and draws the Icon over it in the key's text colour.
+_Avoid_: Glyph, symbol
+
+**Border**:
+The state colour drawn as a frame around the picture of a key square with Artwork. A merged Cell has it on the group's outer edges only.
+_Avoid_: Outline, frame
+
+**Key picture**:
+The processed image shown on one key square, published as that square's picture variable. A merged Cell's picture is cut across its squares.
+_Avoid_: Thumbnail, icon (that is an Icon)
+
 **Offline**:
 The state where Sode or the router is unreachable. Every button of the page shows Offline and presses are ignored.
