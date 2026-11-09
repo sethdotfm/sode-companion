@@ -1,4 +1,4 @@
-// Which key squares of a panel a Companion page shows. Shared by the runtime and the Generator. Pure, no Node imports.
+// Which key squares of a panel a Companion page shows. Pure, no Node imports.
 import { cellsIn } from './vendor/panelrules.js';
 
 // Companion's default page: 4 rows by 8 columns.

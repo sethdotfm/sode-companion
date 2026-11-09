@@ -9,7 +9,7 @@ A physical Companion control device, such as a Stream Deck. A surface shows a wi
 _Avoid_: Hardware panel (Sode's word for a physical router panel), deck, controller
 
 **Page**:
-One Companion grid of buttons. The generator builds a page that holds one panel.
+One Companion grid of buttons. The generator builds a page of universal buttons that any Panel up to that size can fill.
 _Avoid_: Layout, screen
 
 **Connection**:
@@ -29,7 +29,7 @@ A button's row and column on the Panel's grid. A button follows whichever Cell i
 _Avoid_: Cell binding, cell id
 
 **Generator**:
-The standalone script that reads a Panel from Sode and writes an importable Companion page of buttons bound to a Connection. It is built to be lifted into Sode as a Share feature.
+The standalone script that writes an importable Companion page of N by M universal buttons bound to a Connection. It reads nothing from Sode. It is built to be lifted into Sode as a Share feature.
 _Avoid_: Exporter, importer
 
 **Artwork**:

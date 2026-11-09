@@ -1,8 +1,8 @@
 // Makes the Connection an online Sode Instance: the 15 second keepalive plus the held instances stream.
 // The stream lets Sode notice a closed Connection after 8 seconds instead of 45; the keepalive stays as its fallback.
 
-export const KEEPALIVE_MS = 15000;
-export const MAX_DEVICE = 40;
+const KEEPALIVE_MS = 15000;
+const MAX_DEVICE = 40;
 
 // The device name Sode shows: the setting, else the connection's label. null when it is too long for Sode.
 export function deviceName(device, label) {

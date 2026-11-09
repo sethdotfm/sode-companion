@@ -3,7 +3,7 @@ import { PNG } from 'pngjs';
 import jpeg from 'jpeg-js';
 import { GifReader } from 'omggif';
 
-export const KEY_SIZE = 72;
+const KEY_SIZE = 72;
 // Sode refuses artwork over 1 MB. A small file can still declare a huge canvas, so the pixel cap is checked from the PNG and GIF
 // headers before any pixels are allocated; jpeg-js enforces it itself.
 export const MAX_BYTES = 1024 * 1024;

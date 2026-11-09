@@ -2,8 +2,8 @@
 // `timers` is injectable so tests drive time by hand.
 import { RESULT_MS, ERROR_MS, GUARD_DOUBLE_MS } from './vendor/panelmodel.js';
 
-export const PULSE_STEPS = 4;
-export const PULSE_MS = 333; // 500 ms at 1.5x speed
+const PULSE_STEPS = 4;
+const PULSE_MS = 333; // 500 ms at 1.5x speed
 
 // Brightness of a pulse phase (1..4) as a fraction of the state colour: breathes between 0.72 and 1.
 export const pulseLevel = (phase) => 0.72 + 0.28 * (1 - Math.abs((phase - 1) / (PULSE_STEPS / 2) - 1));

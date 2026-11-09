@@ -12,9 +12,9 @@ import {
   squareSideVariable,
 } from '../visible.js';
 
-export const EXPORT_VERSION = 12;
-export const COMPANION_BUILD = '5.1.2+10019-stable-98d5d4e1a1';
-export const MODULE_ID = 'sode-panels';
+const EXPORT_VERSION = 12;
+const COMPANION_BUILD = '5.1.2+10019-stable-98d5d4e1a1';
+const MODULE_ID = 'sode-panels';
 
 // Companion wraps every option and layer property so it can hold an expression instead.
 const val = (value) => ({ value, isExpression: false });
@@ -137,7 +137,7 @@ const instanceOf = (label, config, moduleVersion) => ({
 });
 
 // Bound positions count from 1; Companion counts controls from 0, by row then column, as strings.
-export function pageOf({ panel, grid, buttons, connectionId, label, connection, moduleVersion }) {
+export function pageOf({ id, name, grid, buttons, connectionId, label, connection, moduleVersion }) {
   const controls = {};
   for (const { r, c, button } of buttons) (controls[r - 1] ||= {})[c - 1] = button;
   return {
@@ -145,13 +145,13 @@ export function pageOf({ panel, grid, buttons, connectionId, label, connection, 
     type: 'page',
     companionBuild: COMPANION_BUILD,
     page: {
-      id: `sode_${panel.slug || panel.id}`,
-      name: panel.name,
+      id,
+      name,
       controls,
       gridSize: { minColumn: 0, maxColumn: grid.cols - 1, minRow: 0, maxRow: grid.rows - 1 },
       pageVariables: [],
     },
-    instances: { [connectionId]: instanceOf(label, { ...connection, panel: panel.slug || panel.id }, moduleVersion) },
+    instances: { [connectionId]: instanceOf(label, connection, moduleVersion) },
     connectionCollections: [],
     oldPageNumber: 1,
     imageLibrary: [],
