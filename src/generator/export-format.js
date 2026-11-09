@@ -1,7 +1,6 @@
 // The only file that knows Companion's page export shape, matched to a Companion 5.1.2 one-page export
 // (test/fixtures/speedtest-export.companionconfig). Keep all format wrapping here.
-import { squareVariable } from '../visible.js';
-import { COLOURS, textOn } from '../colours.js';
+import { squareVariable, squareBgVariable, squareFgVariable } from '../visible.js';
 
 export const EXPORT_VERSION = 12;
 export const COMPANION_BUILD = '5.1.2+10019-stable-98d5d4e1a1';
@@ -9,11 +8,12 @@ export const MODULE_ID = 'sode-panels';
 
 // Companion wraps every option and layer property so it can hold an expression instead.
 const val = (value) => ({ value, isExpression: false });
+const expression = (value) => ({ value, isExpression: true });
 
 const GEOMETRY = { x: val(0), y: val(0), width: val(100), height: val(100) };
 const LAYER = (id, name, type, pinnedProperties) => ({ id, name, usage: 'auto', type, ...(pinnedProperties ? { pinnedProperties } : {}) });
 
-function layersOf(text, bg) {
+function layersOf(text, bg, fg) {
   return [
     { ...LAYER('canvas', 'Canvas', 'canvas'), decoration: val('default'), showStatusIcons: val('default') },
     {
@@ -22,7 +22,7 @@ function layersOf(text, bg) {
       opacity: val(100),
       ...GEOMETRY,
       rotation: val(0),
-      color: val(bg),
+      color: expression(bg),
       cornerRadius: val(0),
       borderWidth: val(0),
       borderColor: val(0),
@@ -46,7 +46,7 @@ function layersOf(text, bg) {
       ...GEOMETRY,
       rotation: val(0),
       text: val(text),
-      color: val(textOn(bg)),
+      color: expression(fg),
       halign: val('center'),
       valign: val('center'),
       fontsize: val(29.4),
@@ -60,7 +60,7 @@ function layersOf(text, bg) {
 }
 
 // Ids only need to be unique inside the file.
-export function buttonOf({ r, c, cell }, connectionId, label) {
+export function buttonOf({ r, c }, connectionId, label) {
   const at = { row: val(r), col: val(c) };
   const action = (event) => ({
     type: 'action',
@@ -72,11 +72,16 @@ export function buttonOf({ r, c, cell }, connectionId, label) {
   });
   return {
     type: 'button-layered',
-    style: { layers: layersOf(`$(${label}:${squareVariable(r, c)})`, cell ? (COLOURS[cell.kind] ?? COLOURS.none) : COLOURS.blank) },
+    // Colours are variable expressions the module keeps current; a layer field has no static fallback.
+    style: {
+      layers: layersOf(
+        `$(${label}:${squareVariable(r, c)})`,
+        `$(${label}:${squareBgVariable(r, c)})`,
+        `$(${label}:${squareFgVariable(r, c)})`,
+      ),
+    },
     options: { stepProgression: 'auto', stepExpression: '', rotaryActions: false, canModifyStyleInApis: false, notes: '' },
-    feedbacks: [
-      { type: 'feedback', id: `look_${r}_${c}`, connectionId, definitionId: 'look', options: at, isInverted: val(false), upgradeIndex: 0 },
-    ],
+    feedbacks: [],
     steps: { 0: { action_sets: { down: [action('down')], up: [action('up')] }, options: { runWhileHeld: [] } } },
     localVariables: [],
   };

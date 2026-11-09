@@ -23,7 +23,7 @@ Never paste a key into chat or commit it. The Connection holds it as a Companion
 - The Take key lights once something valid is staged. Take applies every staged change at once. Clear drops the view and the staged changes.
 - Every key shows Offline and ignores presses while Sode or the router is unreachable. The connection status then reads Connection Failure.
 
-Variables hold the viewed destination, its current source, the staged count, the last error, the router status and the text of each key square. Presets list every Cell of the panel in grid order, for building buttons by hand.
+Variables hold the viewed destination, its current source, the staged count, the last error, the router status, and for each key square its text (`key_<row>_<col>`), background colour (`key_<row>_<col>_bg`) and text colour (`key_<row>_<col>_fg`). The colours are numbers (0xRRGGBB). Generated pages read these variables in layer expressions, so they carry no feedback. Presets and the Look feedback are for building buttons by hand.
 
 ## Known limits
 
