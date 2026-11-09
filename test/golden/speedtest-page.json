@@ -30,9 +30,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -87,9 +85,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -144,11 +140,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -199,14 +191,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -366,9 +351,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -423,9 +406,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -480,11 +461,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -535,14 +512,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -702,9 +672,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -759,9 +727,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -816,11 +782,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -871,14 +833,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1038,9 +993,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1095,9 +1048,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1152,11 +1103,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1207,14 +1154,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1374,9 +1314,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1431,9 +1369,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1488,11 +1424,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1543,14 +1475,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1712,9 +1637,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1769,9 +1692,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1826,11 +1747,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -1881,14 +1798,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2048,9 +1958,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2105,9 +2013,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2162,11 +2068,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2217,14 +2119,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2384,9 +2279,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2441,9 +2334,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2498,11 +2389,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2553,14 +2440,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2720,9 +2600,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2777,9 +2655,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2834,11 +2710,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -2889,14 +2761,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3056,9 +2921,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3113,9 +2976,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3170,11 +3031,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3225,14 +3082,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3394,9 +3244,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3451,9 +3299,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3508,11 +3354,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3563,14 +3405,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3730,9 +3565,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3787,9 +3620,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3844,11 +3675,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -3899,14 +3726,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4066,9 +3886,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4123,9 +3941,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4180,11 +3996,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4235,14 +4047,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4402,9 +4207,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4459,9 +4262,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4516,11 +4317,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4571,14 +4368,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4738,9 +4528,7 @@
                 "name": "Background",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4795,9 +4583,7 @@
                 "name": "Inset",
                 "usage": "auto",
                 "type": "box",
-                "pinnedProperties": [
-                  "color"
-                ],
+                "pinnedProperties": ["color"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4852,11 +4638,7 @@
                 "name": "Image",
                 "usage": "auto",
                 "type": "image",
-                "pinnedProperties": [
-                  "base64Image",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["base64Image", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false
@@ -4907,14 +4689,7 @@
                 "name": "Text",
                 "usage": "auto",
                 "type": "text",
-                "pinnedProperties": [
-                  "text",
-                  "fontsize",
-                  "fontsizeAllowShrink",
-                  "color",
-                  "halign",
-                  "valign"
-                ],
+                "pinnedProperties": ["text", "fontsize", "fontsizeAllowShrink", "color", "halign", "valign"],
                 "enabled": {
                   "value": true,
                   "isExpression": false

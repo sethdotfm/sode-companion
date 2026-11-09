@@ -10,7 +10,7 @@ import { createLivePanel } from './live-panel.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
 import { withPrefix } from './sode-key.js';
-import { keyPicture } from './artwork.js';
+import { keyPicture, keyPictures, cropSvg } from './artwork.js';
 import { iconMarkup } from './icons.js';
 import { textFor, WHITE } from './colours.js';
 
@@ -60,12 +60,10 @@ const ART_ID = /^a-[0-9a-f]{8}$/;
 // The Border is this share of the key on each side of an Artwork key.
 const BORDER_PERCENT = 8;
 // Lucide's 24 box and stroke, with padding so the Icon sits inside the key. Companion draws the SVG data URL itself.
-const iconPicture = (markup, rgb) => {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 32 32" fill="none" stroke="#${rgb.toString(16).padStart(6, '0')}" ` +
-    `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
-  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
-};
+const iconSvg = (markup, rgb) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 32 32" fill="none" stroke="#${rgb.toString(16).padStart(6, '0')}" ` +
+  `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
+const dataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
 
@@ -122,7 +120,8 @@ export function createRuntime({
   let pressed = null; // the Cell of the press in progress
   let seenError = null;
   const listeners = [];
-  // Key pictures by art id. Each id is fetched once; failed ids are retried when a newer panel applies.
+  // Artwork by art id: its bytes, the picture for one key square, and the crops made per merged group size. Each id is
+  // fetched once; failed ids are retried when a newer panel applies.
   const pictures = new Map();
   const fetching = new Set();
   const changed = () => {
@@ -269,11 +268,31 @@ export function createRuntime({
     syncArtwork(p);
   }
 
-  // Only a Cell on one key square shows Artwork for now.
-  const artIdOf = (cell) =>
-    typeof cell.art === 'string' && ART_ID.test(cell.art) && (cell.rs ?? 1) === 1 && (cell.cs ?? 1) === 1 ? cell.art : '';
-  // Icons draw on one key square for now, like Artwork.
-  const iconOf = (cell) => ((cell.rs ?? 1) === 1 && (cell.cs ?? 1) === 1 ? iconMarkup(cell.art) : undefined);
+  const artIdOf = (cell) => (typeof cell.art === 'string' && ART_ID.test(cell.art) ? cell.art : '');
+  const iconOf = (cell) => iconMarkup(cell.art);
+  const sizeOf = (cell) => ({ rs: cell.rs ?? 1, cs: cell.cs ?? 1 });
+
+  // The Key picture of the square at (r, c) of a Cell's group: the whole picture on one square, else that square's cut.
+  const artworkAt = (cell, r, c) => {
+    const entry = pictures.get(artIdOf(cell));
+    if (!entry) return undefined;
+    const { rs, cs } = sizeOf(cell);
+    if (rs === 1 && cs === 1) return entry.single;
+    const id = `${rs}x${cs}`;
+    if (!entry.groups.has(id)) entry.groups.set(id, keyPictures(entry.bytes, { rs, cs, border: BORDER_PERCENT }));
+    return entry.groups.get(id)?.[r - cell.r]?.[c - cell.c] ?? undefined;
+  };
+  const iconAt = (cell, r, c, markup, rgb) => {
+    const svg = iconSvg(markup, rgb);
+    const { rs, cs } = sizeOf(cell);
+    if (rs === 1 && cs === 1) return dataUrl(svg);
+    return cropSvg(svg, { rs, cs, border: 0 })?.[r - cell.r]?.[c - cell.c];
+  };
+  // The Border is drawn on a square's sides that lie on the group's outer edge.
+  const edgesOf = (cell, r, c) => {
+    const { rs, cs } = sizeOf(cell);
+    return { bl: c === cell.c, bt: r === cell.r, br: c === cell.c + cs - 1, bb: r === cell.r + rs - 1 };
+  };
   // Sode hides text only under artwork, so a Cell never ends up with neither.
   const textHidden = (cell) => cell.hideText === true && (ART_ID.test(cell.art) || iconMarkup(cell.art) !== undefined);
 
@@ -286,19 +305,23 @@ export function createRuntime({
 
   async function fetchArtwork(panelId, id) {
     fetching.add(id);
-    let picture = null;
+    let entry = null;
     try {
       const path = `panels/${encodeURIComponent(panelId)}/artwork/${id}`;
       const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
       log(`GET ${path} ${res.status}`);
-      if (res.ok) picture = keyPicture(new Uint8Array(await res.arrayBuffer()));
+      if (res.ok) {
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        const single = keyPicture(bytes);
+        if (single) entry = { bytes, single, groups: new Map() };
+      }
     } catch {
       // Any failure leaves the key plain; the next applied panel tries again.
     }
     fetching.delete(id);
     // A panel applied meanwhile may have dropped the id.
-    if (stopped || !picture || !drawn.some((cell) => artIdOf(cell) === id)) return;
-    pictures.set(id, picture);
+    if (stopped || !entry || !drawn.some((cell) => artIdOf(cell) === id)) return;
+    pictures.set(id, entry);
     changed();
   }
 
@@ -563,8 +586,9 @@ export function createRuntime({
       const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
-      const picture = pictures.get(artIdOf(cell));
+      const picture = artworkAt(cell, r, c);
       const icon = iconOf(cell);
+      const iconPicture = icon && iconAt(cell, r, c, icon, cell.hideText === true ? WHITE : textFor(colour));
       // A Result, refusal or "Press again" still speaks over hidden text.
       const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm';
       return {
@@ -572,9 +596,9 @@ export function createRuntime({
         colour,
         pulse: pulse ? timing.phase() : 0,
         ...(fill === undefined ? {} : { fill }),
-        ...(picture ? { picture, border: BORDER_PERCENT } : {}),
+        ...(picture ? { picture, border: BORDER_PERCENT, edges: edgesOf(cell, r, c) } : {}),
         // An Icon keeps the solid fill, so it has no Border.
-        ...(icon ? { picture: iconPicture(icon, cell.hideText === true ? WHITE : textFor(colour)), border: 0 } : {}),
+        ...(iconPicture ? { picture: iconPicture, border: 0 } : {}),
       };
     },
   };

@@ -114,8 +114,10 @@ export function errorText(err, names) {
 
 // Offline is what the page shows over a blurred grid. Sode not answering wins: with no answer the router link is unknown.
 export function offlineOf({ failed, routerUp }) {
-  if (failed) return { title: 'Offline', detail: 'This page lost contact with Sode. Nothing you press will reach the router until it is back.' };
-  if (!routerUp) return { title: 'Offline', detail: 'Sode lost contact with the router. Nothing you press will reach it until it is back.' };
+  if (failed)
+    return { title: 'Offline', detail: 'This page lost contact with Sode. Nothing you press will reach the router until it is back.' };
+  if (!routerUp)
+    return { title: 'Offline', detail: 'Sode lost contact with the router. Nothing you press will reach it until it is back.' };
   return null;
 }
 
