@@ -13,6 +13,7 @@ const BLANK = 0x111111;
 export const WHITE = 0xffffff;
 const DARK_TEXT = 0x14131f;
 
+// Mirrors Sode's Take colours in web/panels.css; re-check by hand when Sode changes them.
 // One colour per Cell kind (idle), then the state classes the runtime's look() can return.
 export const COLOURS = {
   source: 0x314739,
@@ -22,8 +23,8 @@ export const COLOURS = {
   'destination-view': ORANGE,
   'destination-staged': ORANGE,
   take: CONTROL,
-  'take-armed': AMBER,
-  'take-confirm': ORANGE,
+  'take-armed': RED,
+  'take-confirm': AMBER,
   preset: HOVER,
   'preset-pending': ORANGE,
   unavailable: CONTROL,
@@ -43,3 +44,7 @@ export const textOn = (rgb) => {
   const [r, g, b] = [16, 8, 0].map((s) => (rgb >> s) & 255);
   return 0.299 * r + 0.587 * g + 0.114 * b > 140 ? DARK_TEXT : WHITE;
 };
+
+// RED sits just under the luminance cut (white would be 3.2:1); dark text is 5.8:1.
+const TEXT_OVERRIDE = { 'take-armed': DARK_TEXT };
+export const textFor = (colour) => TEXT_OVERRIDE[colour] ?? textOn(COLOURS[colour] ?? COLOURS.none);

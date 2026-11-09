@@ -297,6 +297,33 @@ test('the confirm look reaches the key colour variables through styleOf', async 
   assert.notEqual(COLOURS['take-confirm'], COLOURS['take-armed']);
 });
 
+// WCAG 2.x contrast ratio, computed independently of the module's text rule.
+const luminance = (rgb) => {
+  const [r, g, b] = [16, 8, 0].map((s) => {
+    const v = ((rgb >> s) & 255) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+test('the armed Take is red and its text is at least 4.5:1 against it, dimmed or not', () => {
+  assert.equal(COLOURS['take-armed'], 0xf0605a);
+  for (const pulse of [0, 1, 2, 3, 4]) {
+    const style = styleOf({ text: 'TAKE', colour: 'take-armed', pulse });
+    assert.equal(style.color, 0x14131f);
+    assert.ok(contrast(style.color, COLOURS['take-armed']) >= 4.5);
+  }
+});
+
+test('the confirm Take is amber, apart from the red armed Take', () => {
+  assert.equal(COLOURS['take-confirm'], 0xf2b84b);
+  assert.equal(styleOf({ text: 'Press\nagain', colour: 'take-confirm', pulse: 0 }).color, 0x14131f);
+});
+
 test('a hold guard keeps the armed look and its fill, with no confirm text', async () => {
   const { rt } = await connect({}, { settings: { guard: 'hold' } });
   await press(rt, DST_A);
