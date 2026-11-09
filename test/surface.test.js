@@ -44,11 +44,25 @@ const hostOf = () => ({
 async function connect({ cells = CELLS, over = {}, fake: given } = {}) {
   const clock = fakeClock();
   const fake = given || (await startFakeSode({ panel: panelOf(cells), presets: PRESETS }));
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 0, liveMs: 0, now: clock.now, timers: clock.timers, ...over });
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    panel: 'speedtest',
+    key: KEY,
+    device: 'Deck',
+    pollMs: 0,
+    liveMs: 0,
+    now: clock.now,
+    timers: clock.timers,
+    ...over,
+  });
   const host = hostOf();
   const surface = createSurface({ runtime: rt, host, label: 'sode' });
   rt.onChange(surface.sync);
-  open.push(() => rt.stop(), () => fake.close());
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return { rt, host, fake, clock };
 }
@@ -101,7 +115,8 @@ test('a changed grid size rebuilds the variable definitions', async () => {
 
 test('variables cover the router status and a text variable for every key square, text on the root square only', async () => {
   const { rt, host } = await connect();
-  for (const id of ['viewed', 'current', 'staged', 'error', 'router', 'key_1_1', 'key_1_4', 'key_1_5', 'key_2_4', 'key_2_5']) assert.ok(id in host.defs.at(-1), id);
+  for (const id of ['viewed', 'current', 'staged', 'error', 'router', 'key_1_1', 'key_1_4', 'key_1_5', 'key_2_4', 'key_2_5'])
+    assert.ok(id in host.defs.at(-1), id);
   const v = valuesSoFar(host);
   assert.equal(v.router, 'up');
   assert.equal(v.key_1_1, 'CAM 1');
@@ -111,7 +126,10 @@ test('variables cover the router status and a text variable for every key square
   const sent = host.values.length;
   await rt.press(1, 3);
   assert.equal(valuesSoFar(host).viewed, 'MON A');
-  assert.ok(host.values.slice(sent).every((x) => !('key_1_1' in x)), 'unchanged variables are not sent again');
+  assert.ok(
+    host.values.slice(sent).every((x) => !('key_1_1' in x)),
+    'unchanged variables are not sent again',
+  );
 });
 
 test('the router variable follows the stream, and is unknown without the status scope', async () => {
@@ -128,7 +146,11 @@ test('the router variable follows the stream, and is unknown without the status 
 });
 
 test('every colour the runtime shows has a Companion colour', async () => {
-  const fake = await startFakeSode({ panel: panelOf(CELLS), presets: PRESETS, tally: { levels: [{ level: 1, label: '1' }], routes: [{ dst: 0, level: 1, src: 0 }] } });
+  const fake = await startFakeSode({
+    panel: panelOf(CELLS),
+    presets: PRESETS,
+    tally: { levels: [{ level: 1, label: '1' }], routes: [{ dst: 0, level: 1, src: 0 }] },
+  });
   const { rt } = await connect({ fake, over: { pollMs: 15 } });
   const seen = new Set();
   const snap = () => {

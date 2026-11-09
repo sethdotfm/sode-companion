@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The Generator's command line: reads a panel from Sode and writes a Companion page file. The core is src/generator.
 // The key comes from the SODE_KEY environment variable only, and is never printed or written.
 import { parseArgs } from 'node:util';
@@ -63,4 +62,6 @@ const doc = generatePage(panel, args['connection-id'] || args.label, {
 });
 const out = args.out || `${panel.slug || panel.id}.companionconfig`;
 writeFileSync(out, stringify(doc));
-process.stdout.write(`Wrote ${out}: page "${panel.name}", ${visibleSquares(panel).length} buttons. Import it in Companion, then set the key on the connection.\n`);
+process.stdout.write(
+  `Wrote ${out}: page "${panel.name}", ${visibleSquares(panel).length} buttons. Import it in Companion, then set the key on the connection.\n`,
+);

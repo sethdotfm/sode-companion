@@ -41,7 +41,10 @@ async function connect(over = {}, panelExtra = {}) {
     takeReply: over.takeReply,
   });
   const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 15 });
-  open.push(() => rt.stop(), () => fake.close());
+  open.push(
+    () => rt.stop(),
+    () => fake.close(),
+  );
   await rt.start();
   return { rt, fake };
 }
@@ -166,7 +169,10 @@ test('a route outside the Rights is refused before arming', async () => {
 test('a failed route stays staged and Take can be pressed again', async () => {
   let n = 0;
   const { rt, fake } = await connect({
-    takeReply: (body) => ({ status: 200, body: { ok: true, results: body.routes.map((r) => ({ ...r, result: ++n === 1 ? 'failed' : 'connected', ok: n > 1 })) } }),
+    takeReply: (body) => ({
+      status: 200,
+      body: { ok: true, results: body.routes.map((r) => ({ ...r, result: ++n === 1 ? 'failed' : 'connected', ok: n > 1 })) },
+    }),
   });
   await press(rt, DST_A);
   await press(rt, SRC2);

@@ -1,4 +1,5 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
+import { randomUUID } from 'node:crypto';
 import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
@@ -29,7 +30,13 @@ const FAILS = {
 
 export const FAILURE_CODES = Object.keys(FAILS);
 
-const REFUSALS = { invalid_key: 'key-refused', key_required: 'key-refused', key_expired: 'key-expired', network_not_allowed: 'network-refused', api_off: 'api-off' };
+const REFUSALS = {
+  invalid_key: 'key-refused',
+  key_required: 'key-refused',
+  key_expired: 'key-expired',
+  network_not_allowed: 'network-refused',
+  api_off: 'api-off',
+};
 
 class Refused extends Error {
   constructor(code, http = 0, api = '') {
@@ -50,7 +57,24 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key: rawKey, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, timers = { setTimeout, clearTimeout }, log = () => {} }) {
+export function createRuntime({
+  host,
+  port,
+  tls = false,
+  panel: panelRef,
+  key: rawKey,
+  device = '',
+  label = '',
+  fetch: doFetch = globalThis.fetch,
+  WebSocket: WS = globalThis.WebSocket,
+  retryMs = 5000,
+  pollMs = 2000,
+  liveMs = 5000,
+  grid = COMPANION_GRID,
+  now = Date.now,
+  timers = { setTimeout, clearTimeout },
+  log = () => {},
+}) {
   const key = withPrefix(rawKey);
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
@@ -139,7 +163,11 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key: r
 
   // Offline is Sode not answering or the router down; either clears by itself.
   function syncOffline() {
-    const text = sodeLost ? 'Sode did not answer. Every key shows Offline until it does.' : routerUp === false ? 'Sode lost contact with the router. Every key shows Offline until it is back.' : '';
+    const text = sodeLost
+      ? 'Sode did not answer. Every key shows Offline until it does.'
+      : routerUp === false
+        ? 'Sode lost contact with the router. Every key shows Offline until it is back.'
+        : '';
     if (text && (status.code !== 'offline' || status.text !== text)) set('offline', text);
     else if (!text && status.code === 'offline') set('ok', `Panel ${panel.name}`);
   }
@@ -220,7 +248,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key: r
     log(`GET ${path} ${res.status}`);
     const body = await res.json().catch(() => ({}));
     if (res.ok) return body;
-    const code = REFUSALS[body?.error?.code] || (res.status === 401 ? 'key-refused' : res.status === 404 ? 'panel-not-found' : 'unreachable');
+    const code =
+      REFUSALS[body?.error?.code] || (res.status === 401 ? 'key-refused' : res.status === 404 ? 'panel-not-found' : 'unreachable');
     throw new Refused(code, res.status, body?.error?.code);
   };
 
@@ -274,7 +303,6 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key: r
   // Colour is the Cell kind, or kind-state while a view, a stage or an armed Take changes it.
   function cellLook(cell) {
     const text = labelOf(cell, names);
-    const t = now();
     switch (cell.kind) {
       case 'source': {
         const s = model.sourceState(state, cell.n, env);
@@ -284,7 +312,12 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key: r
         const shown = model.resultShown(state, cell.n, now());
         if (shown) return { text: `${text}\n${shown.word}`, colour: `result-${shown.result}`, pulse: 0 };
         const s = model.destinationState(state, cell.n);
-        if (s === 'staged') return { text: `${text}\n${names.source(state.staged.find((x) => x.dst === cell.n).src)}`, colour: 'destination-staged', pulse: 1 };
+        if (s === 'staged')
+          return {
+            text: `${text}\n${names.source(state.staged.find((x) => x.dst === cell.n).src)}`,
+            colour: 'destination-staged',
+            pulse: 1,
+          };
         return { text, colour: s === 'idle' ? 'destination' : `destination-${s}`, pulse: 0 };
       }
       case 'take': {
@@ -300,7 +333,11 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key: r
       case 'current': {
         if (!state.view) return { text: cell.caption || 'Currently', colour: 'current', pulse: 0 };
         const cur = model.currentSource(env, state);
-        return { text: `${currentLabel(cell, names.destination(state.view.dst))}\n${cur >= 0 ? names.source(cur) : 'None'}`, colour: 'current', pulse: 0 };
+        return {
+          text: `${currentLabel(cell, names.destination(state.view.dst))}\n${cur >= 0 ? names.source(cur) : 'None'}`,
+          colour: 'current',
+          pulse: 0,
+        };
       }
       default:
         return { text, colour: cell.kind, pulse: 0 };
@@ -316,12 +353,14 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key: r
     try {
       const res = await doFetch(`${base}/takes`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'Idempotency-Key': randomUUID() },
         body: JSON.stringify({ routes: started.routes }),
       });
       log(`POST takes ${res.status}`);
       const body = await res.json().catch(() => ({}));
-      state = res.ok ? model.finishTake(state, body, now()) : model.failTake(state, body?.error?.code || 'refused', body?.error?.message || '', now());
+      state = res.ok
+        ? model.finishTake(state, body, now())
+        : model.failTake(state, body?.error?.code || 'refused', body?.error?.message || '', now());
     } catch {
       state = model.failTake(state, 'unreachable', 'Sode did not answer the take', now());
     }

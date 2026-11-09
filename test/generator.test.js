@@ -5,7 +5,17 @@ import { parse, stringify } from 'yaml';
 import { generatePage } from '../src/generator/index.js';
 import { actionDefinitions, feedbackDefinitions, COLOURS } from '../src/surface.js';
 
-const panelOf = (cells, over = {}) => ({ id: 'p-1', name: 'Speedtest', slug: 'speedtest', acts: 'api', rows: 3, cols: 5, cells, rev: 1, ...over });
+const panelOf = (cells, over = {}) => ({
+  id: 'p-1',
+  name: 'Speedtest',
+  slug: 'speedtest',
+  acts: 'api',
+  rows: 3,
+  cols: 5,
+  cells,
+  rev: 1,
+  ...over,
+});
 // Companion keys controls by row then column as strings from 0; the Bound position counts from 1.
 const controlAt = (doc, r, c) => doc.page.controls?.[r - 1]?.[c - 1];
 const layer = (btn, id) => btn.style.layers.find((l) => l.id === id);
@@ -24,7 +34,11 @@ const FULL = [
   { r: 3, c: 4, kind: 'take', cs: 2 },
 ];
 
-const pressOf = (r, c, event) => ({ row: { value: r, isExpression: false }, col: { value: c, isExpression: false }, event: { value: event, isExpression: false } });
+const pressOf = (r, c, event) => ({
+  row: { value: r, isExpression: false },
+  col: { value: c, isExpression: false },
+  event: { value: event, isExpression: false },
+});
 
 test('a source cell becomes one button bound to its row and column', () => {
   const doc = generatePage(panelOf([{ r: 2, c: 3, kind: 'source', n: 0 }]), 'conn123');
@@ -87,7 +101,12 @@ test('a panel larger than the Companion grid keeps the squares that fit and does
 test('a merged Cell has a button on every square and each presses its own row and column', () => {
   const doc = generatePage(panelOf([{ r: 1, c: 1, kind: 'take', rs: 2, cs: 2 }]), 'c', { label: 'sode' });
   assert.equal(squareCount(doc), 4);
-  for (const [r, c] of [[1, 1], [1, 2], [2, 1], [2, 2]]) {
+  for (const [r, c] of [
+    [1, 1],
+    [1, 2],
+    [2, 1],
+    [2, 2],
+  ]) {
     assert.deepEqual(controlAt(doc, r, c).steps[0].action_sets.down[0].options, pressOf(r, c, 'down'));
     // The runtime fills this variable: text on the root square, empty on the others.
     assert.equal(textOf(doc, r, c), `$(sode:key_${r}_${c})`);
@@ -100,14 +119,24 @@ test('a merged Cell cut by the grid edge keeps the squares inside it', () => {
 });
 
 // Leaves become their type; the {value, isExpression} wrapper stays so a bare value where Companion wraps one fails.
-const shapeOf = (v) => (Array.isArray(v) ? v.map(shapeOf) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, shapeOf(x)])) : v === null ? 'null' : typeof v);
+const shapeOf = (v) =>
+  Array.isArray(v)
+    ? v.map(shapeOf)
+    : v && typeof v === 'object'
+      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, shapeOf(x)]))
+      : v === null
+        ? 'null'
+        : typeof v;
 
 test('a generated button has the real export layer set, keys and wrapped values', () => {
   const real = REAL.page.controls[0][1];
   const made = controlAt(generatePage(panelOf([{ r: 1, c: 2, kind: 'source', n: 0 }]), 'c', { label: 'sode' }), 1, 2);
   assert.deepEqual(Object.keys(made), Object.keys(real));
   assert.equal(made.type, real.type);
-  assert.deepEqual(made.style.layers.map((l) => l.id), real.style.layers.map((l) => l.id));
+  assert.deepEqual(
+    made.style.layers.map((l) => l.id),
+    real.style.layers.map((l) => l.id),
+  );
   for (const [i, l] of real.style.layers.entries()) {
     const got = made.style.layers[i];
     assert.deepEqual(Object.keys(got), Object.keys(l), l.id);
@@ -123,8 +152,22 @@ test('a generated button has the real export layer set, keys and wrapped values'
 
 test('the page file has the real export wrapper and gridSize, with controls keyed from "0"', () => {
   const doc = generatePage(panelOf(FULL), 'c', { label: 'sode' });
-  for (const k of ['version', 'type', 'companionBuild', 'page', 'instances', 'connectionCollections', 'oldPageNumber', 'imageLibrary', 'imageLibraryCollections']) assert.ok(k in doc, k);
-  assert.deepEqual(Object.keys(doc), Object.keys(REAL).filter((k) => k in doc || k === 'companionBuild'));
+  for (const k of [
+    'version',
+    'type',
+    'companionBuild',
+    'page',
+    'instances',
+    'connectionCollections',
+    'oldPageNumber',
+    'imageLibrary',
+    'imageLibraryCollections',
+  ])
+    assert.ok(k in doc, k);
+  assert.deepEqual(
+    Object.keys(doc),
+    Object.keys(REAL).filter((k) => k in doc || k === 'companionBuild'),
+  );
   assert.equal(doc.version, REAL.version);
   assert.equal(doc.type, 'page');
   assert.deepEqual(Object.keys(doc.page), Object.keys(REAL.page));

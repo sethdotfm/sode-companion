@@ -16,7 +16,10 @@ export async function readPanel({ host, port, tls, panel, key, fetch: doFetch = 
   const origin = `${tls ? 'https' : 'http'}://${host}:${port}`;
   let res;
   try {
-    res = await doFetch(`${origin}/api/v1/panels/${encodeURIComponent(panel)}`, { headers: { Authorization: `Bearer ${withPrefix(key)}` }, signal: AbortSignal.timeout(10_000) });
+    res = await doFetch(`${origin}/api/v1/panels/${encodeURIComponent(panel)}`, {
+      headers: { Authorization: `Bearer ${withPrefix(key)}` },
+      signal: AbortSignal.timeout(10_000),
+    });
   } catch {
     throw new ReadFailed(`Sode did not answer at ${origin}. Check the host, port and TLS choice.`);
   }

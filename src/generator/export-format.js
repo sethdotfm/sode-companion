@@ -62,12 +62,21 @@ function layersOf(text, bg) {
 // Ids only need to be unique inside the file.
 export function buttonOf({ r, c, cell }, connectionId, label) {
   const at = { row: val(r), col: val(c) };
-  const action = (event) => ({ type: 'action', id: `${event}_${r}_${c}`, connectionId, definitionId: 'press', options: { ...at, event: val(event) }, upgradeIndex: 0 });
+  const action = (event) => ({
+    type: 'action',
+    id: `${event}_${r}_${c}`,
+    connectionId,
+    definitionId: 'press',
+    options: { ...at, event: val(event) },
+    upgradeIndex: 0,
+  });
   return {
     type: 'button-layered',
     style: { layers: layersOf(`$(${label}:${squareVariable(r, c)})`, COLOURS[cell.kind] ?? COLOURS.none) },
     options: { stepProgression: 'auto', stepExpression: '', rotaryActions: false, canModifyStyleInApis: false, notes: '' },
-    feedbacks: [{ type: 'feedback', id: `look_${r}_${c}`, connectionId, definitionId: 'look', options: at, isInverted: val(false), upgradeIndex: 0 }],
+    feedbacks: [
+      { type: 'feedback', id: `look_${r}_${c}`, connectionId, definitionId: 'look', options: at, isInverted: val(false), upgradeIndex: 0 },
+    ],
     steps: { 0: { action_sets: { down: [action('down')], up: [action('up')] }, options: { runWhileHeld: [] } } },
     localVariables: [],
   };

@@ -90,8 +90,18 @@ const presetsOf = (cells, label) => {
     presets[`cell_${cell.r}_${cell.c}`] = {
       type: 'simple',
       name: `Row ${cell.r} column ${cell.c}: ${cell.kind}`,
-      style: { text: `$(${label}:${squareVariable(cell.r, cell.c)})`, size: 'auto', color: textOn(COLOURS[cell.kind] ?? COLOURS.none), bgcolor: COLOURS[cell.kind] ?? COLOURS.none },
-      steps: [{ down: [{ actionId: 'press', options: { ...where, event: 'down' } }], up: [{ actionId: 'press', options: { ...where, event: 'up' } }] }],
+      style: {
+        text: `$(${label}:${squareVariable(cell.r, cell.c)})`,
+        size: 'auto',
+        color: textOn(COLOURS[cell.kind] ?? COLOURS.none),
+        bgcolor: COLOURS[cell.kind] ?? COLOURS.none,
+      },
+      steps: [
+        {
+          down: [{ actionId: 'press', options: { ...where, event: 'down' } }],
+          up: [{ actionId: 'press', options: { ...where, event: 'up' } }],
+        },
+      ],
       feedbacks: [{ feedbackId: 'look', options: where }],
     };
   }
@@ -118,7 +128,10 @@ export function createSurface({ runtime, host, label }) {
         host.setVariableDefinitions(variableDefinitionsOf(runtime.squares()));
         if (cells.length || hasPresets) {
           hasPresets = cells.length > 0;
-          host.setPresetDefinitions([{ id: 'cells', name: 'Panel cells', definitions: cells.map((c) => `cell_${c.r}_${c.c}`) }], presetsOf(cells, label));
+          host.setPresetDefinitions(
+            [{ id: 'cells', name: 'Panel cells', definitions: cells.map((c) => `cell_${c.r}_${c.c}`) }],
+            presetsOf(cells, label),
+          );
         }
       }
       const values = runtime.variables();

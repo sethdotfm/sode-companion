@@ -52,7 +52,9 @@ export function openStream({ base, key, topics, WebSocket: WS = globalThis.WebSo
       clearTimeout(timer);
       try {
         ws?.close();
-      } catch {}
+      } catch {
+        // Already closed.
+      }
     },
   };
 }
