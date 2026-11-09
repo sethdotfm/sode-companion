@@ -1,6 +1,6 @@
 // The Generator core: a panel and a connection id in, a Companion page file out as plain data. Pure, no Node imports,
 // so it can move into Sode. Format details live in export-format.js.
-import { COMPANION_GRID, visibleSquares } from '../visible.js';
+import { COMPANION_GRID, keySquares } from '../visible.js';
 import { buttonOf, pageOf } from './export-format.js';
 
 // label is the connection's label, which Companion's variable references use. connection is the host, port and tls
@@ -10,6 +10,6 @@ export function generatePage(
   connectionId,
   { grid = COMPANION_GRID, label = connectionId, connection = {}, moduleVersion = '0.0.1' } = {},
 ) {
-  const buttons = visibleSquares(panel, grid).map((sq) => ({ r: sq.r, c: sq.c, button: buttonOf(sq, connectionId, label) }));
+  const buttons = keySquares(panel, grid).map((sq) => ({ r: sq.r, c: sq.c, button: buttonOf(sq, connectionId, label) }));
   return pageOf({ panel, grid, buttons, connectionId, label, connection, moduleVersion });
 }

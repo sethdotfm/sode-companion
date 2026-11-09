@@ -21,3 +21,16 @@ export function visibleSquares(panel, grid = COMPANION_GRID) {
   }
   return out.sort((a, b) => a.r - b.r || a.c - b.c);
 }
+
+// Every key square of the panel inside the grid, in row order: the drawn ones from visibleSquares plus blank ones
+// (cell null, root false) where no drawn Cell sits. Squares outside the panel's own rows and columns are not included.
+export function keySquares(panel, grid = COMPANION_GRID) {
+  const drawn = new Map(visibleSquares(panel, grid).map((sq) => [`${sq.r},${sq.c}`, sq]));
+  const out = [];
+  for (let r = 1; r <= Math.min(panel.rows || 0, grid.rows); r++) {
+    for (let c = 1; c <= Math.min(panel.cols || 0, grid.cols); c++) {
+      out.push(drawn.get(`${r},${c}`) ?? { r, c, cell: null, root: false });
+    }
+  }
+  return out;
+}

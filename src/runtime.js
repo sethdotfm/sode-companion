@@ -5,7 +5,7 @@ import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
 import { createHold } from './hold.js';
 import { deviceName, startInstance } from './instance.js';
-import { COMPANION_GRID, visibleSquares, squareVariable } from './visible.js';
+import { COMPANION_GRID, keySquares, visibleSquares, squareVariable } from './visible.js';
 import { createLivePanel } from './live-panel.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
@@ -53,6 +53,7 @@ const scopeDenied = (e) => e.http === 403 && !isRefusal(e);
 
 const NO_PANEL = { rows: 0, cols: 0 };
 const NONE = { text: '', colour: 'none', pulse: 0 };
+const BLANK = { text: '', colour: 'blank', pulse: 0 };
 
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
@@ -216,10 +217,12 @@ export function createRuntime({
     changed();
   }
 
-  // A Cell whose Root square is off the Companion grid is not drawn.
+  // A Cell whose Root square is off the Companion grid is not drawn. Blank key squares get a variable and a look but no preset.
   function useGrid(p) {
-    squares = visibleSquares(p, grid);
-    drawn = squares.filter((s) => s.root).map((s) => s.cell);
+    squares = keySquares(p, grid);
+    drawn = visibleSquares(p, grid)
+      .filter((s) => s.root)
+      .map((s) => s.cell);
   }
 
   function settle() {
@@ -467,9 +470,10 @@ export function createRuntime({
     squares: () => squares,
     look(r, c) {
       const cell = cellAt(r, c);
-      if (!cell) return NONE;
-      const root = cell.r === r && cell.c === c;
-      if (status.code === 'offline') return { text: root ? 'Offline' : '', colour: 'offline', pulse: 0 };
+      const isKey = squares.some((s) => s.r === r && s.c === c);
+      const root = !cell || (cell.r === r && cell.c === c);
+      if (status.code === 'offline' && isKey) return { text: root ? 'Offline' : '', colour: 'offline', pulse: 0 };
+      if (!cell) return isKey ? BLANK : NONE;
       const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);

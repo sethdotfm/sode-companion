@@ -7,6 +7,8 @@ const RED = 0xf0605a;
 const GREY = 0x9b958c;
 const CONTROL = 0x1e1e1e;
 const HOVER = 0x2c2c2c;
+// Darker than CONTROL so a square with no Cell reads as unused beside an idle Take.
+const BLANK = 0x111111;
 
 export const WHITE = 0xffffff;
 const DARK_TEXT = 0x14131f;
@@ -31,6 +33,7 @@ export const COLOURS = {
   'result-failed': RED,
   error: RED,
   offline: HOVER,
+  blank: BLANK,
   none: 0x000000,
 };
 

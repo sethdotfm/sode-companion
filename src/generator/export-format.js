@@ -72,7 +72,7 @@ export function buttonOf({ r, c, cell }, connectionId, label) {
   });
   return {
     type: 'button-layered',
-    style: { layers: layersOf(`$(${label}:${squareVariable(r, c)})`, COLOURS[cell.kind] ?? COLOURS.none) },
+    style: { layers: layersOf(`$(${label}:${squareVariable(r, c)})`, cell ? (COLOURS[cell.kind] ?? COLOURS.none) : COLOURS.blank) },
     options: { stepProgression: 'auto', stepExpression: '', rotaryActions: false, canModifyStyleInApis: false, notes: '' },
     feedbacks: [
       { type: 'feedback', id: `look_${r}_${c}`, connectionId, definitionId: 'look', options: at, isInverted: val(false), upgradeIndex: 0 },

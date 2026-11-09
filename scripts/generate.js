@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { stringify } from 'yaml';
 import { generatePage } from '../src/generator/index.js';
-import { visibleSquares } from '../src/visible.js';
+import { keySquares } from '../src/visible.js';
 import { readPanel, ReadFailed } from './read-panel.js';
 
 const USAGE = `Usage: SODE_KEY=<panel key> node scripts/generate.js --host <host> --panel <id or short name> [options]
@@ -52,7 +52,7 @@ try {
   fail(e instanceof ReadFailed ? e.message : 'Could not read the panel from Sode.');
 }
 
-if (!visibleSquares(panel).length) fail('The panel has no key squares to draw: every Cell is empty or outside the Companion grid.');
+if (!keySquares(panel).length) fail('The panel has no key squares to draw.');
 
 const manifest = JSON.parse(readFileSync(new URL('../companion/manifest.json', import.meta.url), 'utf8'));
 const doc = generatePage(panel, args['connection-id'] || args.label, {
@@ -63,5 +63,5 @@ const doc = generatePage(panel, args['connection-id'] || args.label, {
 const out = args.out || `${panel.slug || panel.id}.companionconfig`;
 writeFileSync(out, stringify(doc));
 process.stdout.write(
-  `Wrote ${out}: page "${panel.name}", ${visibleSquares(panel).length} buttons. Import it in Companion, then set the key on the connection.\n`,
+  `Wrote ${out}: page "${panel.name}", ${keySquares(panel).length} buttons. Import it in Companion, then set the key on the connection.\n`,
 );
