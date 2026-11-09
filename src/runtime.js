@@ -81,6 +81,7 @@ export function createRuntime({
   pollMs = 2000,
   rereadMs = 30_000,
   liveMs = 5000,
+  takeMessages = false,
   grid = COMPANION_GRID,
   now = Date.now,
   timers = { setTimeout, clearTimeout },
@@ -456,6 +457,17 @@ export function createRuntime({
     }
   }
 
+  // The two Take prompts; null when neither is showing.
+  function takePrompt() {
+    if (!model.armed(state, env)) return null;
+    if (state.holdAt) return { text: 'Keep\nholding', colour: 'take-armed' };
+    return model.guardWaiting(state, now()) ? { text: 'Press\nagain', colour: 'take-confirm' } : null;
+  }
+
+  // The viewed Destination and the staged Sources, which the option lets share the Take's prompt.
+  const onRoute = (cell) =>
+    (cell.kind === 'destination' && state.view?.dst === cell.n) || (cell.kind === 'source' && state.staged.some((x) => x.src === cell.n));
+
   const cellAt = (r, c) => r <= grid.rows && c <= grid.cols && drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
 
   async function sendTake(started = model.startTake(state, env, now())) {
@@ -585,14 +597,19 @@ export function createRuntime({
       if (!cell) return isKey ? BLANK : NONE;
       const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
-      const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
+      const prompt = takeMessages && !flashing && onRoute(cell) ? takePrompt() : null;
+      const { colour, pulse, text, fill } = flashing
+        ? { colour: 'error', pulse: 0, text: flashWord(err) }
+        : prompt
+          ? { ...prompt, pulse: 1 }
+          : cellLook(cell);
       const picture = artworkAt(cell, r, c);
       const icon = iconOf(cell);
       // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
       const glyph = artIdOf(cell) ? '' : glyphOf(cell);
       const iconPicture = (icon || glyph) && iconAt(cell, r, c, icon, glyph, cell.hideText === true ? WHITE : textFor(colour));
       // A Result, refusal, "Press again" or "Keep holding" still speaks over hidden text.
-      const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm' || fill !== undefined;
+      const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm' || fill !== undefined || !!prompt;
       return {
         text: root && (speaks || !textHidden(cell)) ? text : '',
         colour,

@@ -30,6 +30,15 @@ class SodePanelsInstance extends InstanceBase {
       { id: 'panel', type: 'textinput', label: 'Panel id or short name', width: 8, default: '', minLength: 1 },
       { id: 'key', type: 'secret-text', label: 'Panel instance key', width: 12, minLength: 1 },
       { id: 'device', type: 'textinput', label: 'Device name (blank uses the connection label)', width: 8, default: '' },
+      {
+        id: 'takeMessages',
+        type: 'checkbox',
+        label: 'Show Take messages on the route keys',
+        tooltip:
+          'Also shows "Keep holding" and "Press again" on the viewed Destination and the staged Sources, where a finger on the Take key hides them.',
+        width: 12,
+        default: false,
+      },
     ];
   }
 
@@ -42,6 +51,7 @@ class SodePanelsInstance extends InstanceBase {
       panel: config.panel,
       key: secrets?.key,
       device: config.device,
+      takeMessages: !!config.takeMessages,
       label: this.label,
       // Debug lines only: the runtime never logs a key.
       log: (line) => this.log('debug', line),

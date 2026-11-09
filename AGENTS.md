@@ -39,6 +39,7 @@ Other divergences from Sode's web page, kept in the runtime (`src/runtime.js`, `
 
 - After a take the viewed destination stays viewed. Only Clear or a newly applied panel drops it. Sode's page has no idle clear (upstream removed it from the model), so neither has the module.
 - A double-press Take shows "Press\nagain" in `take-confirm` (amber) from the first press until the 1.5 s window lapses or the second press fires. The hold guard keeps the armed look and its fill.
+- The `takeMessages` option (off by default) puts those two Take prompts on the viewed Destination and staged Source keys (`onRoute`, `takePrompt` in `src/runtime.js`), in the Take's own colour class and without the hold fill. A hidden-text Cell on the route speaks them, as on the Take. `configUpdated` rebuilds the runtime, so a change applies on save.
 - Take colours (`take-armed` red, `take-confirm` amber) mirror Sode's `web/panels.css` and need a manual re-check when Sode changes them.
 - The pulse has 4 phases of 333 ms (500 ms at 1.5x speed), breathing between 72% and 100% of the state colour.
 
