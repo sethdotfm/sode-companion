@@ -292,15 +292,16 @@ test('the confirm Take is amber, apart from the red armed Take', () => {
   assert.equal(styleOf({ text: 'Press\nagain', colour: 'take-confirm', pulse: 0 }).color, 0x14131f);
 });
 
-test('a hold guard keeps the armed look and its fill, with no confirm text', async () => {
+test('a hold guard keeps the armed look and its fill, and asks to keep holding while the press lasts', async () => {
   const { rt } = await connect({}, { settings: { guard: 'hold' } });
   await press(rt, DST_A);
   await press(rt, SRC2);
   await press(rt, TAKE);
   assert.equal(look(rt, TAKE).colour, 'take-armed');
-  assert.equal(look(rt, TAKE).text, 'Take');
+  assert.equal(look(rt, TAKE).text, 'Keep\nholding');
   assert.equal(look(rt, TAKE).fill, 0);
   rt.release();
+  assert.equal(look(rt, TAKE).text, 'Take');
 });
 
 test('after a take the view stays until Clear, however long the panel sits', async () => {
