@@ -602,7 +602,7 @@ export function createRuntime({
           ? { picture, border: BORDER_PERCENT, edges: edgesOf(cell, r, c), opacity: textHidden(cell) ? 100 : ARTWORK_OPACITY }
           : {}),
         // An Icon keeps the solid fill, so it has no Border.
-        ...(iconPicture ? { picture: iconPicture, border: 0, opacity: 100 } : {}),
+        ...(iconPicture ? { picture: iconPicture, border: 0, opacity: textHidden(cell) ? 100 : ARTWORK_OPACITY } : {}),
       };
     },
   };

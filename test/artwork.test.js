@@ -615,7 +615,7 @@ test('a group cut by the grid edge has no Border on the cut sides', async () => 
 
 const op = (host, r, c) => host.values[`key_${r}_${c}_op`];
 
-test('Artwork is drawn at 30%, at full strength once its text is hidden; an Icon and a plain key are always full strength', async () => {
+test('Artwork and Icons are drawn at 30% under a label and at full strength once the text is hidden; a plain key is full strength', async () => {
   const cells = [
     { r: 1, c: 1, kind: 'source', n: 0, art: ART },
     { r: 1, c: 2, kind: 'source', n: 1, art: ART, hideText: true },
@@ -627,7 +627,7 @@ test('Artwork is drawn at 30%, at full strength once its text is hidden; an Icon
   await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'the Artwork pictures');
   assert.deepEqual(
     [1, 2, 3, 4, 5].map((c) => op(host, 1, c)),
-    [30, 100, 100, 100, 100],
+    [30, 100, 30, 100, 100],
   );
   assert.equal(op(host, 3, 5), 100, 'a blank square');
 });
@@ -651,7 +651,7 @@ test('Icon B alone is a text glyph in the key text colour, with no sprite, Borde
   assert.ok(!iconSvg(host, 1, 1).includes('<path'));
   assert.equal(fillOf(host, 1, 1), hex(textFor('source')));
   assert.equal(host.values.key_1_1_inset, 0);
-  assert.equal(op(host, 1, 1), 100);
+  assert.equal(op(host, 1, 1), 30);
   assert.equal(host.values.key_1_1, 'CAM 1');
   assert.equal(artReads(fake).length, 0);
 });
