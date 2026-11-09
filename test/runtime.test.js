@@ -44,6 +44,15 @@ test('the look of a row and column is the name of the Cell there', async () => {
   assert.deepEqual(rt.status(), { code: 'ok', text: 'Panel Test panel' });
 });
 
+test('a panel larger than the default Companion page keeps every key square and answers presses on them', async () => {
+  const fake = await startFakeSode({ panel: panelOf([{ r: 5, c: 9, kind: 'destination', n: 0 }], { rows: 5, cols: 9 }) });
+  const { rt } = await connect(fake);
+  assert.ok(rt.squares().some((s) => s.r === 5 && s.c === 9));
+  assert.equal(rt.look(5, 9).text, 'MON A');
+  await rt.press(5, 9);
+  assert.equal(rt.variables().viewed, 'MON A');
+});
+
 test('Cells without a Source, Destination or Preset and empty squares look blank and are not listed as presets', async () => {
   const fake = await startFakeSode({
     panel: panelOf([
@@ -65,8 +74,6 @@ test('Cells without a Source, Destination or Preset and empty squares look blank
   }
   assert.equal(rt.look(1, 4).text, 'CAM 1');
   assert.equal(rt.variables().staged, 0);
-  assert.equal(rt.variables().key_3_5, '');
-  assert.equal(rt.variables().key_1_1, '');
   assert.deepEqual(
     rt.cells().map((x) => [x.r, x.c]),
     [[1, 4]],

@@ -13,7 +13,6 @@ const BLANK = 0x111111;
 export const WHITE = 0xffffff;
 const DARK_TEXT = 0x14131f;
 
-// Mirrors Sode's Take colours in web/panels.css; re-check by hand when Sode changes them.
 // One colour per Cell kind (idle), then the state classes the runtime's look() can return.
 export const COLOURS = {
   source: 0x314739,
@@ -39,9 +38,12 @@ export const COLOURS = {
   none: 0x000000,
 };
 
+export const channelsOf = (rgb) => [16, 8, 0].map((s) => (rgb >> s) & 255);
+export const rgbOf = ([r, g, b]) => (r << 16) | (g << 8) | b;
+
 // Dark text on a light accent, white on a dark one.
 export const textOn = (rgb) => {
-  const [r, g, b] = [16, 8, 0].map((s) => (rgb >> s) & 255);
+  const [r, g, b] = channelsOf(rgb);
   return 0.299 * r + 0.587 * g + 0.114 * b > 140 ? DARK_TEXT : WHITE;
 };
 

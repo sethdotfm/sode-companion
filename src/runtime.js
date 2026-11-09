@@ -3,13 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
-import { createHold } from './hold.js';
 import { deviceName, startInstance } from './instance.js';
-import { COMPANION_GRID, keySquares, visibleSquares, squareVariable } from './visible.js';
-import { createLivePanel } from './live-panel.js';
+import { keySquares, visibleSquares } from './visible.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
-import { withPrefix } from './sode-key.js';
+import { fullKey } from './vendor/panellink.js';
 import { keyPicture, keyPictures, cropSvg, svgDataUrl, MAX_BYTES } from './artwork.js';
 import { iconMarkup, glyphOf, iconSvg } from './icons.js';
 import { textFor, WHITE } from './colours.js';
@@ -17,7 +15,7 @@ import { textFor, WHITE } from './colours.js';
 // namesFrom has no label for a Take cell.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
 
-// Fixed wording only: Sode's own error text is never shown, and no message holds the key.
+// Fixed wording for the module's own failures, none of which holds the key. A refused take shows Sode's message, as its page does.
 const FAILS = {
   'key-refused': 'Sode refused the key. It is wrong or was revoked, so make a new one.',
   'key-expired': 'The key has expired. Make a new key for this panel.',
@@ -57,14 +55,14 @@ const scopeDenied = (e) => e.http === 403 && !isRefusal(e);
 const NO_PANEL = { rows: 0, cols: 0 };
 // Sode's pattern for an artwork id (web/panellook.js); any other art string is an icon or dropped.
 const ART_ID = /^a-[0-9a-f]{8}$/;
-// The Border is this share of the key on each side of an Artwork key.
+// Percent of the key.
 const BORDER_PERCENT = 8;
-// Artwork is dimmed so the label stays readable; with the text hidden, and for Icons, nothing sits over the picture.
 const ARTWORK_OPACITY = 30;
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
+// How often a hold's fill is redrawn.
+const TICK_MS = 100;
 
-// Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
 export function createRuntime({
@@ -82,12 +80,11 @@ export function createRuntime({
   rereadMs = 30_000,
   liveMs = 5000,
   takeMessages = false,
-  grid = COMPANION_GRID,
   now = Date.now,
   timers = { setTimeout, clearTimeout },
   log = () => {},
 }) {
-  const key = withPrefix(rawKey);
+  const key = fullKey(String(rawKey || '').trim());
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -96,22 +93,21 @@ export function createRuntime({
   let drawn = [];
   let stopped = false;
   let halted = false; // a refused key ends every timer, and nothing may re-arm one
-  let timer = 0;
   let stopInstance = null;
   const name = deviceName(device, label);
-  let pollTimer = 0;
-  let liveTimer = 0;
-  let live = null;
+  let seenRev;
+  let newer = null; // the saved copy of the panel that differs from the one applied
   let polls = 0;
   let state = model.createState();
   let env = envFrom({}, {});
   let tallyRaw = {};
+  let protectedRead = {};
+  let presetsRead = {};
   // true or false from the status read, null when the key has no status scope: the link is unknown, not down.
   let routerUp = null;
   let noStatusScope = false;
   let sodeLost = false;
   let streamUp = false;
-  let rereadTimer = 0;
   let tallyFrames = 0; // frames applied to tallyRaw; a re-read that overlaps one is stale
   let stream = null;
   let flash = null; // { cell, at }: the Cell whose press set the error shown
@@ -137,46 +133,56 @@ export function createRuntime({
     changed();
   };
 
-  // A scope 403 reads as empty rather than failing the panel. Any other failure throws, so the last good read stands.
-  const soft = (path) =>
-    get(path).catch((e) => {
-      if (scopeDenied(e)) return {};
-      throw e;
-    });
+  // One timer per named job, all on the injected timers, so a refusal or a stop clears them in one place.
+  const wakes = new Map();
+  const unwake = (job) => {
+    timers.clearTimeout(wakes.get(job));
+    wakes.delete(job);
+  };
+  const wake = (job, ms, fn) => {
+    unwake(job);
+    wakes.set(job, timers.setTimeout(fn, ms));
+  };
+  const unwakeAll = () => wakes.forEach((_, job) => unwake(job));
+  const dead = () => stopped || halted;
 
-  // Protected and presets are read only when slow is set; the last read stands between.
-  let slowReads = [{}, {}];
-  // False when the key lacks the presets scope (403), so Preset cells say so instead of "no preset".
-  let presetsOpen = true;
-  const readPresets = () =>
-    get('presets').then(
-      (r) => ((presetsOpen = true), r),
+  // A scope 403 reads as denied rather than failing the panel. Any other failure throws, so the last good read stands.
+  const optional = (path) =>
+    get(path).then(
+      (body) => ({ body, denied: false }),
       (e) => {
         if (!scopeDenied(e)) throw e;
-        presetsOpen = false;
-        return {};
+        return { body: {}, denied: true };
       },
     );
-  async function readRouter(slow, withTally = true) {
-    if (withTally) tallyRaw = await get('tally');
-    if (slow) slowReads = await Promise.all([soft('protected'), readPresets()]);
+
+  // False when the key lacks the presets scope, so Preset cells say so instead of "no preset".
+  let presetsOpen = true;
+
+  function rebuildEnv() {
+    env = envFrom(tallyRaw, protectedRead, presetsRead, panel.rights);
+    state = model.applyTally(state, env);
+  }
+
+  async function readTally() {
+    tallyRaw = await get('tally');
     rebuildEnv();
   }
 
-  function rebuildEnv() {
-    env = envFrom(tallyRaw, slowReads[0], slowReads[1], panel.rights);
-    state = model.applyTally(state, env);
+  // Protected and presets change rarely, so they are read on every Nth poll; the last read stands between.
+  async function readSlow() {
+    const [prot, presets] = await Promise.all([optional('protected'), optional('presets')]);
+    protectedRead = prot.body;
+    presetsRead = presets.body;
+    presetsOpen = !presets.denied;
+    rebuildEnv();
   }
 
   async function readStatus() {
     if (noStatusScope) return;
-    try {
-      routerUp = (await get('status')).routerUp;
-    } catch (e) {
-      if (!(e.http === 403 && e.api === 'scope')) throw e;
-      noStatusScope = true;
-      routerUp = null;
-    }
+    const { body, denied } = await optional('status');
+    noStatusScope = denied;
+    routerUp = denied ? null : body.routerUp;
   }
 
   // Offline is Sode not answering or the router down; either clears by itself.
@@ -192,17 +198,18 @@ export function createRuntime({
 
   // While the stream is up only the slow reads are polled; down, tally and status are polled every pollMs.
   async function poll() {
-    if (stopped || halted) return;
+    if (dead()) return;
     try {
-      const slow = ++polls % SLOW_EVERY === 0;
-      if (streamUp) await readRouter(slow, false);
-      else {
-        await readRouter(slow);
-        await readStatus();
+      const reads = [];
+      if (!streamUp) reads.push(readTally(), readStatus());
+      if (++polls % SLOW_EVERY === 0) reads.push(readSlow());
+      // A quiet tick with the stream up reads nothing and tells nobody.
+      if (reads.length) {
+        await Promise.all(reads);
+        sodeLost = false;
+        syncOffline();
+        changed();
       }
-      sodeLost = false;
-      syncOffline();
-      changed();
     } catch (e) {
       // A refusal ends all attempts; anything else is a lost Sode.
       if (isRefusal(e)) return refuse(e.fail);
@@ -210,15 +217,15 @@ export function createRuntime({
       sodeLost = true;
       syncOffline();
     }
-    if (!stopped && !halted && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
+    if (!dead() && pollMs > 0) wake('poll', pollMs, poll);
   }
 
   // Safety net for a delta the stream missed: while it is up, re-read the tally every rereadMs.
   // Separate from poll() and the post-take refresh, so neither resets it.
   function armReread() {
-    timers.clearTimeout(rereadTimer);
-    if (!streamUp || stopped || halted || rereadMs <= 0) return;
-    rereadTimer = timers.setTimeout(async () => {
+    unwake('reread');
+    if (!streamUp || dead() || rereadMs <= 0) return;
+    wake('reread', rereadMs, async () => {
       const seen = tallyFrames;
       try {
         const fresh = await get('tally');
@@ -231,14 +238,12 @@ export function createRuntime({
         if (isRefusal(e)) return refuse(e.fail);
       }
       armReread();
-    }, rereadMs);
+    });
   }
 
   function refuse(code) {
     halted = true;
-    clearTimeout(pollTimer);
-    timers.clearTimeout(rereadTimer);
-    clearTimeout(liveTimer);
+    unwakeAll();
     stream?.close();
     stopInstance?.();
     set(code);
@@ -257,17 +262,16 @@ export function createRuntime({
     changed();
   }
 
-  // A Cell whose Root square is off the Companion grid is not drawn. Blank key squares get a variable and a look but no preset.
-  function useGrid(p) {
-    squares = keySquares(p, grid);
-    drawn = visibleSquares(p, grid)
+  // Blank key squares get a variable and a look but no preset.
+  function usePanel(p) {
+    squares = keySquares(p);
+    drawn = visibleSquares(p)
       .filter((s) => s.root)
       .map((s) => s.cell);
     syncArtwork(p);
   }
 
   const artIdOf = (cell) => (typeof cell.art === 'string' && ART_ID.test(cell.art) ? cell.art : '');
-  const iconOf = (cell) => iconMarkup(cell.art);
   const sizeOf = (cell) => ({ rs: cell.rs ?? 1, cs: cell.cs ?? 1 });
 
   // The square at (r, c) of a Cell's group from cut(rs, cs), which gives rows of columns or null when the group cannot be cut.
@@ -285,14 +289,24 @@ export function createRuntime({
       return entry.groups.get(id);
     });
   };
-  const iconAt = (cell, r, c, markup, glyph, rgb) => {
-    const svg = iconSvg(markup, glyph, rgb);
-    return squareOf(cell, r, c, (rs, cs) => (rs === 1 && cs === 1 ? [[svgDataUrl(svg)]] : cropSvg(svg, { rs, cs, border: 0 })));
-  };
   const edgesOf = (cell, r, c) => {
     const { rs, cs } = sizeOf(cell);
     return { bl: c === cell.c, bt: r === cell.r, br: c === cell.c + cs - 1, bb: r === cell.r + rs - 1 };
   };
+  // The Key picture of one square with its Border and opacity, or nothing. An Icon keeps the solid fill, so it has no Border.
+  function pictureLook(cell, r, c, colour, hidden) {
+    const opacity = hidden ? 100 : ARTWORK_OPACITY;
+    const edges = edgesOf(cell, r, c);
+    const artwork = artworkAt(cell, r, c);
+    if (artwork) return { picture: artwork, border: BORDER_PERCENT, edges, opacity };
+    const markup = iconMarkup(cell.art);
+    // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
+    const glyph = artIdOf(cell) ? '' : glyphOf(cell);
+    if (!markup && !glyph) return {};
+    const svg = iconSvg(markup, glyph, cell.hideText === true ? WHITE : textFor(colour));
+    const picture = squareOf(cell, r, c, (rs, cs) => (rs === 1 && cs === 1 ? [[svgDataUrl(svg)]] : cropSvg(svg, { rs, cs, border: 0 })));
+    return picture ? { picture, border: 0, edges, opacity } : {};
+  }
   // Sode hides text only under art or a valid Icon B, so a Cell with neither keeps its label. Any art string counts, valid or
   // not, so a bad id or icon name does not bring the label back.
   const textHidden = (cell) => cell.hideText === true && ((typeof cell.art === 'string' && cell.art !== '') || glyphOf(cell) !== '');
@@ -309,8 +323,7 @@ export function createRuntime({
     let entry = null;
     try {
       const path = `panels/${encodeURIComponent(panelId)}/artwork/${id}`;
-      const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
-      log(`GET ${path} ${res.status}`);
+      const res = await request(path);
       // The header is checked before the body so an oversize file is never buffered.
       if (res.ok && !(Number(res.headers.get('content-length')) > MAX_BYTES)) {
         const bytes = new Uint8Array(await res.arrayBuffer());
@@ -327,30 +340,39 @@ export function createRuntime({
     changed();
   }
 
+  // A newer saved copy applies at once unless a take is in flight; the view and staged routes go with the old copy.
   function settle() {
-    const fresh = live?.due({ busy: state.busy, viewed: !!state.view, staged: state.staged.length > 0 }, now());
-    if (!fresh) return;
-    panel = fresh;
-    useGrid(fresh);
-    state = model.createState(fresh.settings);
+    if (!newer || state.busy) return;
+    panel = newer;
+    newer = null;
+    seenRev = panel.rev;
+    usePanel(panel);
+    state = model.createState(panel.settings);
     changed();
   }
 
   async function checkPanel() {
-    if (stopped || halted) return;
+    if (dead()) return;
     try {
-      live.notice(await get(`panels/${encodeURIComponent(panelRef)}`), now());
+      const p = await get(`panels/${encodeURIComponent(panelRef)}`);
+      // A server without rev sends none: nothing ever differs then.
+      if (typeof p.rev === 'number' && p.rev !== seenRev) newer = p;
     } catch (e) {
       // Any other failure leaves the panel as it is; the next check tries again.
       if (isRefusal(e)) return refuse(e.fail);
     }
     settle();
-    if (!stopped && !halted) liveTimer = setTimeout(checkPanel, liveMs);
+    if (!dead()) wake('live', liveMs, checkPanel);
+  }
+
+  async function request(path, { method = 'GET', headers, body } = {}) {
+    const res = await doFetch(`${base}/${path}`, { method, headers: { Authorization: `Bearer ${key}`, ...headers }, body });
+    log(`${method} ${path} ${res.status}`);
+    return res;
   }
 
   const get = async (path) => {
-    const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
-    log(`GET ${path} ${res.status}`);
+    const res = await request(path);
     const body = await res.json().catch(() => ({}));
     if (res.ok) return body;
     const code =
@@ -359,7 +381,7 @@ export function createRuntime({
   };
 
   async function load() {
-    clearTimeout(timer);
+    unwake('load');
     try {
       const p = await get(`panels/${encodeURIComponent(panelRef)}`);
       if (p.acts !== 'api' && p.acts !== 'both') throw new Refused('session-mode');
@@ -367,11 +389,11 @@ export function createRuntime({
       if (stopped) return;
       panel = p;
       names = namesFrom(fetchedNames);
-      useGrid(p);
-      live = createLivePanel(p.rev);
+      usePanel(p);
+      seenRev = p.rev;
+      newer = null;
       state = model.createState(p.settings);
-      await readRouter(true);
-      await readStatus();
+      await Promise.all([readTally(), readSlow(), readStatus()]);
       if (stopped) return;
       sodeLost = false;
       stopInstance ??= startInstance({ base, panelId: p.id, key, device: name, fetch: doFetch, retryMs, log });
@@ -391,21 +413,19 @@ export function createRuntime({
         },
         onDown: () => {
           streamUp = false;
-          timers.clearTimeout(rereadTimer);
+          unwake('reread');
         },
         onFrame,
       });
-      clearTimeout(pollTimer);
-      if (pollMs > 0) pollTimer = setTimeout(poll, pollMs);
-      clearTimeout(liveTimer);
-      if (liveMs > 0) liveTimer = setTimeout(checkPanel, liveMs);
+      if (pollMs > 0) wake('poll', pollMs, poll);
+      if (liveMs > 0) wake('live', liveMs, checkPanel);
     } catch (e) {
       if (stopped) return;
       // A refusal ends the attempts: only a changed key, list or panel helps. A lost connection is retried.
       const code = e.fail || 'unreachable';
       log(`panel not loaded: ${code}`);
       set(code);
-      if (code === 'unreachable') timer = setTimeout(load, retryMs);
+      if (code === 'unreachable') wake('load', retryMs, load);
     }
   }
 
@@ -419,7 +439,7 @@ export function createRuntime({
       }
       case 'destination': {
         const shown = model.resultShown(state, cell.n, now());
-        if (shown) return { text: `${text}\n${shown.word}`, colour: `result-${shown.result}`, pulse: 0 };
+        if (shown) return { text: `${text}\n${shown.word}`, colour: `result-${shown.result}`, pulse: 0, speaks: true };
         const s = model.destinationState(state, cell.n);
         if (s === 'staged')
           return {
@@ -434,9 +454,11 @@ export function createRuntime({
         // Sode's web page has no confirm look; the key is small, so the second press is asked for in text.
         const confirm = armed && model.guardWaiting(state, now());
         const look = confirm
-          ? { text: 'Press\nTake\nagain', colour: 'take-confirm', pulse: 1 }
+          ? { text: 'Press\nTake\nagain', colour: 'take-confirm', pulse: 1, speaks: true }
           : { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
-        return state.holdAt ? { ...look, text: 'Keep\nholding', fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) } : look;
+        return state.holdAt
+          ? { ...look, text: 'Keep\nholding', speaks: true, fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) }
+          : look;
       }
       case 'preset': {
         if (!presetsOpen) return { text: 'Unavailable', colour: 'unavailable', pulse: 0 };
@@ -457,30 +479,28 @@ export function createRuntime({
     }
   }
 
-  // The two Take prompts; null when neither is showing.
   function takePrompt() {
     if (!model.armed(state, env)) return null;
-    if (state.holdAt) return { text: 'Keep\nholding', colour: 'take-armed' };
-    return model.guardWaiting(state, now()) ? { text: 'Press\nTake\nagain', colour: 'take-confirm' } : null;
+    if (state.holdAt) return { text: 'Keep\nholding', colour: 'take-armed', pulse: 1, speaks: true };
+    return model.guardWaiting(state, now()) ? { text: 'Press\nTake\nagain', colour: 'take-confirm', pulse: 1, speaks: true } : null;
   }
 
   // The viewed Destination and the staged Sources, which the option lets share the Take's prompt.
   const onRoute = (cell) =>
     (cell.kind === 'destination' && state.view?.dst === cell.n) || (cell.kind === 'source' && state.staged.some((x) => x.src === cell.n));
 
-  const cellAt = (r, c) => r <= grid.rows && c <= grid.cols && drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
+  const cellAt = (r, c) => drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
 
   async function sendTake(started = model.startTake(state, env, now())) {
     if (!started || status.code !== 'ok') return;
     state = started.state;
     changed();
     try {
-      const res = await doFetch(`${base}/takes`, {
+      const res = await request('takes', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'Idempotency-Key': randomUUID() },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': randomUUID() },
         body: JSON.stringify({ routes: started.routes }),
       });
-      log(`POST takes ${res.status}`);
       const body = await res.json().catch(() => ({}));
       state = res.ok
         ? model.finishTake(state, body, now())
@@ -494,22 +514,69 @@ export function createRuntime({
   }
 
   // One extra tally read after a take, so the keys show what the router did without waiting for the next tick.
-  const refreshTally = () => readRouter(false).then(changed, () => {});
+  const refreshTally = () => readTally().then(changed, () => {});
 
-  const hold = createHold({
-    ms: model.GUARD_HOLD_MS,
-    tick: () => changed(),
-    async due() {
-      hold.stop();
+  // The model owns the hold guard's rules. These timers wake the runtime when it is due and while the fill grows,
+  // since Companion sends no event during a hold.
+  const holdStop = () => {
+    unwake('hold');
+    unwake('beat');
+  };
+  const beat = () =>
+    wake('beat', TICK_MS, () => {
+      changed();
+      beat();
+    });
+  const holdStart = () => {
+    holdStop();
+    wake('hold', model.GUARD_HOLD_MS, async () => {
+      holdStop();
       const guard = model.guardHeld(state, now());
       state = guard.state;
       changed();
       if (guard.go) await sendTake();
-    },
-  });
+    });
+    beat();
+  };
 
   // Instant mode: the press that staged something is the Confirm. A refused press leaves an older failed route staged, so it must not resend.
   const confirmInstant = () => (state.error ? undefined : sendTake(model.startInstant(state, env, now())));
+
+  async function pressKey(cell) {
+    if (!cell || status.code !== 'ok') return;
+    const before = state;
+    switch (cell.kind) {
+      case 'destination':
+        state = model.pressDestination(state, cell, env, now());
+        break;
+      case 'source':
+        state = model.pressSource(state, cell, env, now());
+        changed();
+        return confirmInstant();
+      case 'preset':
+        if (!presetsOpen) return;
+        state = model.pressPreset(state, cell, env, now());
+        changed();
+        return confirmInstant();
+      case 'clear':
+        state = model.clear(state);
+        holdStop();
+        break;
+      case 'take': {
+        // An unarmed press must not start a guard that a later arming would complete.
+        if (!model.armed(state, env)) return;
+        const guard = model.guardDown(state, now());
+        state = guard.state;
+        if (guard.go) await sendTake();
+        else if (state.holdAt) holdStart();
+        break;
+      }
+      default:
+        return;
+    }
+    if (state !== before) changed();
+    settle();
+  }
 
   const api = {
     async start() {
@@ -521,68 +588,34 @@ export function createRuntime({
     stop() {
       stopped = true;
       timing.stop();
-      clearTimeout(timer);
-      clearTimeout(pollTimer);
-      timers.clearTimeout(rereadTimer);
+      unwakeAll();
       stream?.close();
-      hold.stop();
       stopInstance?.();
-      clearTimeout(liveTimer);
     },
     release() {
       if (!state.holdAt) return;
-      hold.stop();
+      holdStop();
       state = model.guardCancel(state);
       changed();
     },
     async press(r, c) {
-      const cell = cellAt(r, c);
-      if (!cell || status.code !== 'ok') return;
-      const before = state;
-      switch (cell.kind) {
-        case 'destination':
-          state = model.pressDestination(state, cell, env, now());
-          break;
-        case 'source':
-          state = model.pressSource(state, cell, env, now());
-          changed();
-          return confirmInstant();
-        case 'preset':
-          if (!presetsOpen) return;
-          state = model.pressPreset(state, cell, env, now());
-          changed();
-          return confirmInstant();
-        case 'clear':
-          state = model.clear(state);
-          hold.stop();
-          break;
-        case 'take': {
-          // An unarmed press must not start a guard that a later arming would complete.
-          if (!model.armed(state, env)) return;
-          const guard = model.guardDown(state, now());
-          state = guard.state;
-          if (guard.go) await sendTake();
-          else if (state.holdAt) hold.start();
-          break;
-        }
-        default:
-          return;
+      pressed = cellAt(r, c);
+      try {
+        await pressKey(pressed);
+      } finally {
+        pressed = null;
       }
-      if (state !== before) changed();
-      settle();
     },
     variables() {
       const view = state.view;
       const cur = model.currentSource(env, state);
-      const out = {
+      return {
         viewed: view ? names.destination(view.dst) : '',
         current: cur >= 0 ? names.source(cur) : '',
         staged: state.staged.length,
         error: errorText(model.errorOf(state, now()), names),
         router: routerUp === null ? 'unknown' : routerUp ? 'up' : 'down',
       };
-      for (const sq of squares) out[squareVariable(sq.r, sq.c)] = api.look(sq.r, sq.c).text;
-      return out;
     },
     onChange: (fn) => listeners.push(fn),
     status: () => status,
@@ -598,41 +631,19 @@ export function createRuntime({
       const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const prompt = takeMessages && !flashing && onRoute(cell) ? takePrompt() : null;
-      const { colour, pulse, text, fill } = flashing
-        ? { colour: 'error', pulse: 0, text: flashWord(err) }
-        : prompt
-          ? { ...prompt, pulse: 1 }
-          : cellLook(cell);
-      const picture = artworkAt(cell, r, c);
-      const icon = iconOf(cell);
-      // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
-      const glyph = artIdOf(cell) ? '' : glyphOf(cell);
-      const iconPicture = (icon || glyph) && iconAt(cell, r, c, icon, glyph, cell.hideText === true ? WHITE : textFor(colour));
-      // A Result, refusal, "Press Take again" or "Keep holding" still speaks over hidden text.
-      const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm' || fill !== undefined || !!prompt;
+      const hidden = textHidden(cell);
+      const { colour, pulse, text, fill, speaks } = flashing
+        ? { colour: 'error', pulse: 0, text: flashWord(err), speaks: true }
+        : prompt || cellLook(cell);
       return {
-        text: root && (speaks || !textHidden(cell)) ? text : '',
+        text: root && (speaks || !hidden) ? text : '',
         colour,
         pulse: pulse ? timing.phase() : 0,
         ...(fill === undefined ? {} : { fill }),
-        ...(picture
-          ? { picture, border: BORDER_PERCENT, edges: edgesOf(cell, r, c), opacity: textHidden(cell) ? 100 : ARTWORK_OPACITY }
-          : {}),
-        // An Icon keeps the solid fill, so it has no Border.
-        ...(iconPicture ? { picture: iconPicture, border: 0, opacity: textHidden(cell) ? 100 : ARTWORK_OPACITY } : {}),
+        ...pictureLook(cell, r, c, colour, hidden),
       };
     },
   };
 
-  // Errors a press raises flash on that press's key, so the pressed Cell is known while changed() runs.
-  const pressNow = api.press;
-  api.press = async (r, c) => {
-    pressed = cellAt(r, c);
-    try {
-      await pressNow(r, c);
-    } finally {
-      pressed = null;
-    }
-  };
   return api;
 }

@@ -1,6 +1,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
+import { until } from './until.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 
 const open = [];
@@ -51,14 +52,6 @@ async function connect(over = {}, panelExtra = {}) {
 
 const press = (rt, [r, c]) => rt.press(r, c);
 const look = (rt, [r, c]) => rt.look(r, c);
-const until = async (fn) => {
-  for (let i = 0; i < 200; i++) {
-    if (fn()) return;
-    await new Promise((ok) => setTimeout(ok, 10));
-  }
-  assert.fail('condition not reached');
-};
-
 test('a Destination then a Source stages a route and Take sends exactly it with the model levels', async () => {
   const { rt, fake } = await connect();
   await press(rt, DST_A);
@@ -82,7 +75,7 @@ test('each Take press sends a fresh Idempotency-Key', async () => {
     await press(rt, TAKE);
     fake.tally = { levels: levels2, routes: [route(0, 1, src === SRC2 ? 1 : 0), route(0, 2, src === SRC2 ? 1 : 0)] };
     await press(rt, DST_A);
-    await until(() => look(rt, src).colour === 'source-current');
+    await until(() => look(rt, src).colour === 'source-current', 'the look');
     await press(rt, CLEAR);
   }
   assert.equal(fake.takes.length, 2);
@@ -222,7 +215,7 @@ test('the viewed destination shows its current source solid green, others idle, 
   assert.equal(look(rt, SRC1).colour, 'source-current');
   assert.equal(look(rt, SRC2).colour, 'source');
   fake.tally = { levels: levels2, routes: [route(0, 1, 1), route(0, 2, 1)] };
-  await until(() => look(rt, SRC2).colour === 'source-current');
+  await until(() => look(rt, SRC2).colour === 'source-current', 'the look');
   assert.equal(look(rt, SRC1).colour, 'source');
 });
 
@@ -257,7 +250,7 @@ test('a route the router already satisfies leaves the plan on the next poll', as
   await press(rt, DST_A);
   await press(rt, SRC2);
   fake.tally = { levels: levels2, routes: [route(0, 1, 1), route(0, 2, 1), route(1, 1, 0), route(1, 2, 0)] };
-  await until(() => look(rt, TAKE).colour === 'take');
+  await until(() => look(rt, TAKE).colour === 'take', 'the look');
 });
 
 test('after a take the destination stays viewed, shows its new source and the plan is empty', async () => {
@@ -273,7 +266,7 @@ test('after a take the destination stays viewed, shows its new source and the pl
   await press(rt, DST_A);
   await press(rt, SRC2);
   await press(rt, TAKE);
-  await until(() => look(rt, SRC2).colour === 'source-current');
+  await until(() => look(rt, SRC2).colour === 'source-current', 'the look');
   assert.equal(rt.variables().staged, 0);
   assert.equal(rt.variables().viewed, 'MON A');
   assert.equal(look(rt, SRC1).colour, 'source');

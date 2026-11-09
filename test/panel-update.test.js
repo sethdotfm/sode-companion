@@ -1,6 +1,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
+import { until } from './until.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 
 const open = [];
@@ -28,14 +29,6 @@ async function connect(fake, over = {}) {
   return { rt };
 }
 
-const until = async (fn, ms = 1500) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (fn()) return;
-    await new Promise((r) => setTimeout(r, 5));
-  }
-  assert.fail('condition not met in time');
-};
 const idle = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 
 const BASE = [
@@ -49,7 +42,7 @@ test('changing a Cell reaches the key at that row and column', async () => {
   const { rt } = await connect(fake);
   assert.equal(rt.look(1, 1).text, 'CAM 1');
   fake.panel = panelOf([{ r: 1, c: 1, kind: 'destination', n: 1 }, ...BASE.slice(1)], { rev: 2 });
-  await until(() => rt.look(1, 1).text === 'MON B');
+  await until(() => rt.look(1, 1).text === 'MON B', 'the change');
   assert.equal(rt.look(1, 1).colour, 'destination');
 });
 
@@ -59,7 +52,7 @@ test('a changed grid size or Cell list rebuilds the cell list and tells the shel
   let told = 0;
   rt.onChange(() => told++);
   fake.panel = panelOf([...BASE, { r: 4, c: 1, kind: 'source', n: 1 }], { rev: 2, rows: 4 });
-  await until(() => rt.cells().length === 4);
+  await until(() => rt.cells().length === 4, 'the change');
   assert.equal(rt.grid().rows, 4);
   assert.ok(told > 0);
 });
@@ -68,7 +61,7 @@ test('a newer panel applies at once when nothing is viewed or staged', async () 
   const fake = await startFakeSode({ panel: panelOf(BASE) });
   const { rt } = await connect(fake);
   fake.panel = panelOf([{ r: 1, c: 1, kind: 'source', n: 1 }, ...BASE.slice(1)], { rev: 2 });
-  await until(() => rt.look(1, 1).text === 'CAM 2');
+  await until(() => rt.look(1, 1).text === 'CAM 2', 'the change');
 });
 
 test('a newer panel applies at once while a destination is viewed or routes are staged, and drops both', async () => {
@@ -78,7 +71,7 @@ test('a newer panel applies at once while a destination is viewed or routes are 
   await rt.press(1, 1);
   assert.equal(rt.variables().staged, 1);
   fake.panel = panelOf([{ r: 1, c: 1, kind: 'source', n: 1 }, ...BASE.slice(1)], { rev: 2 });
-  await until(() => rt.look(1, 1).text === 'CAM 2');
+  await until(() => rt.look(1, 1).text === 'CAM 2', 'the change');
   assert.equal(rt.variables().staged, 0);
   assert.equal(rt.variables().viewed, '');
   assert.equal(rt.look(1, 2).colour, 'destination');
@@ -103,7 +96,7 @@ test('a newer panel waits for a take in flight, then applies', async () => {
   assert.equal(rt.look(1, 1).text, 'CAM 1');
   release();
   await taking;
-  await until(() => rt.look(1, 1).text === 'CAM 2');
+  await until(() => rt.look(1, 1).text === 'CAM 2', 'the change');
 });
 
 test('a merged Take shows its text on the Root square only and presses from any covered square', async () => {
@@ -129,46 +122,11 @@ test('a merged Take shows its text on the Root square only and presses from any 
   assert.equal(fake.takes.length, 1);
 });
 
-test('a panel larger than the Companion grid uses the squares from the top left, with no error', async () => {
-  const fake = await startFakeSode({
-    panel: panelOf(
-      [
-        { r: 1, c: 1, kind: 'source', n: 0 },
-        { r: 5, c: 1, kind: 'source', n: 1 },
-        { r: 1, c: 9, kind: 'source', n: 1 },
-        { r: 4, c: 8, kind: 'take', rs: 2, cs: 2 },
-      ],
-      { rows: 6, cols: 10 },
-    ),
-  });
-  const { rt } = await connect(fake);
-  assert.equal(rt.status().code, 'ok');
-  assert.deepEqual(
-    rt.cells().map((x) => [x.r, x.c]),
-    [
-      [1, 1],
-      [4, 8],
-    ],
-  );
-  assert.equal(rt.look(4, 8).text, 'Take');
-  for (const [r, c] of [
-    [5, 1],
-    [1, 9],
-    [5, 8],
-    [4, 9],
-  ]) {
-    assert.deepEqual(rt.look(r, c), { text: '', colour: 'none', pulse: 0 });
-    await rt.press(r, c);
-  }
-  assert.equal(rt.status().code, 'ok');
-  assert.equal(rt.variables().staged, 0);
-});
-
 test('a key refused on a panel read stops all polling', async () => {
   const fake = await startFakeSode({ panel: panelOf(BASE) });
   const { rt } = await connect(fake);
   fake.refuse = { status: 401, code: 'invalid_key' };
-  await until(() => rt.status().code === 'key-refused');
+  await until(() => rt.status().code === 'key-refused', 'the change');
   await idle();
   const n = fake.requests.length;
   await idle();

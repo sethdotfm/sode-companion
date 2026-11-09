@@ -21,7 +21,7 @@ One button position on a page. A Cell sits on one key square, or on several when
 _Avoid_: Slot, tile
 
 **Root square**:
-The top-left key square of a Merged cell. It alone shows the cell's text. The other key squares of the cell show only its colour, and pressing any of them presses the cell.
+The top-left key square of a Merged cell. It alone shows the cell's text. The other key squares of the cell show only its colour and their slice of its Key picture, and pressing any of them presses the cell.
 _Avoid_: Anchor, parent
 
 **Bound position**:
@@ -37,7 +37,7 @@ An uploaded image that a Cell names by id. A key with Artwork shows it inset und
 _Avoid_: Image, thumbnail
 
 **Icon**:
-A built-in icon that a Cell names with an `icon:` prefix, also called Icon A. A key with an Icon keeps the solid state colour and draws the Icon over it at full strength in the key's text colour, or white when the text is hidden.
+A built-in icon that a Cell names with an `icon:` prefix, also called Icon A. A key with an Icon keeps the solid state colour and draws the Icon over it in the key's text colour, dimmed under a label and at full strength, in white, when the text is hidden.
 _Avoid_: Glyph, symbol
 
 **Icon B**:
@@ -49,7 +49,7 @@ The state colour drawn as a frame around the picture of a key square with Artwor
 _Avoid_: Outline, frame
 
 **Key picture**:
-The processed image shown on one key square, published as that square's picture variable. It comes from Artwork or from an Icon. A merged Cell's picture is cut across its squares.
+The processed image shown on one key square, published as that square's picture variable. It comes from Artwork, an Icon or Icon B. A merged Cell's picture is cut across its squares.
 _Avoid_: Thumbnail, icon (that is an Icon)
 
 **Offline**:

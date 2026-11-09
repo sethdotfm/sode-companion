@@ -310,20 +310,6 @@ test('a merged Icon spans its group with no Border and the Icon colour', async (
   assert.ok(Math.abs(lw - 32) < 0.01 && Math.abs(rw - 32) < 0.01);
 });
 
-test('a group cut by the grid edge shows its visible squares and no error', async () => {
-  const cells = [{ r: 3, c: 7, kind: 'source', n: 0, art: ART, rs: 2, cs: 3 }];
-  const { host, rt } = await connect({ cells, panelExtra: { rows: 5, cols: 10 } });
-  await until(() => pic(host, 4, 8), 'the visible squares');
-  assert.equal(rt.status().code, 'ok');
-  assert.equal(host.values.key_3_9_pic, undefined);
-  assert.equal(host.values.key_5_7_pic, undefined);
-  const v = host.values;
-  assert.deepEqual(sides(v, 3, 7), [8, 8, 0, 0]);
-  assert.deepEqual(sides(v, 4, 8), [0, 0, 0, 8]);
-  const tile = decodeKeyPicture(pic(host, 3, 7));
-  assert.ok(tile.width > 0 && tile.height > 0);
-});
-
 test('Offline drops every picture and brings them back with the router, without a second fetch', async () => {
   const { host, rt, fake } = await connect({ cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART }], over: { pollMs: 15 } });
   await until(() => pic(host, 1, 1), 'the Key picture');
@@ -489,7 +475,7 @@ const stubValues = (look) => {
     cells: () => [],
     squares: () => [{ r: 1, c: 1 }],
     variables: () => ({}),
-    look: () => look,
+    look: () => ({ edges: { bl: true, bt: true, br: true, bb: true }, opacity: 100, ...look }),
     status: () => ({ code: 'ok', text: '' }),
   };
   const host = {
@@ -599,18 +585,6 @@ test('a merged SVG that cannot be cropped leaves its keys plain without an error
   assert.equal(pic(host, 1, 1), '');
   assert.equal(host.values.key_1_1_inset, 0);
   assert.equal(rt.status().code, 'ok');
-});
-
-test('a group cut by the grid edge has no Border on the cut sides', async () => {
-  // The Companion grid is 4 by 8, so this 2 by 3 group at row 4, column 7 shows a 1 by 2 corner of it.
-  const cells = [{ r: 4, c: 7, kind: 'source', n: 0, art: ART, rs: 2, cs: 3 }];
-  const { host, rt } = await connect({ cells, panelExtra: { rows: 6, cols: 10 } });
-  await until(() => pic(host, 4, 7) && pic(host, 4, 8), 'the visible squares');
-  assert.equal(rt.status().code, 'ok');
-  assert.equal(host.values.key_4_9_pic, undefined);
-  assert.equal(host.values.key_5_7_pic, undefined);
-  assert.deepEqual(sides(host.values, 4, 7), [8, 8, 0, 0]);
-  assert.deepEqual(sides(host.values, 4, 8), [0, 8, 0, 0]);
 });
 
 const op = (host, r, c) => host.values[`key_${r}_${c}_op`];

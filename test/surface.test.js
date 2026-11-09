@@ -96,21 +96,24 @@ test('pulse steps and presses do not rebuild presets or variable definitions', a
 });
 
 test('a changed Cell list rebuilds presets and variable definitions once', async () => {
-  const { host, fake } = await connect({ over: { liveMs: 15 } });
+  const { host, fake, clock } = await connect({ over: { liveMs: 1000 } });
   const defs = host.defs.length;
   fake.panel = panelOf([...CELLS, { r: 3, c: 1, kind: 'source', n: 1 }], { rev: 2 });
+  clock.advance(1000);
   await until(() => host.presets.length === 2, 'the rebuilt presets');
   assert.ok('cell_3_1' in host.presets[1].presets);
   assert.ok('key_3_1' in host.defs.at(-1));
+  clock.advance(3000);
   await quiet(150);
   assert.equal(host.presets.length, 2);
   assert.equal(host.defs.length, defs + 1);
 });
 
 test('a changed grid size rebuilds the variable definitions', async () => {
-  const { host, fake } = await connect({ over: { liveMs: 15 } });
+  const { host, fake, clock } = await connect({ over: { liveMs: 1000 } });
   assert.ok(!('key_4_1' in host.defs.at(-1)));
   fake.panel = panelOf([...CELLS, { r: 4, c: 1, kind: 'source', n: 1 }], { rev: 2, rows: 4 });
+  clock.advance(1000);
   await until(() => 'key_4_1' in host.defs.at(-1), 'the rebuilt definitions');
 });
 
@@ -123,7 +126,6 @@ test('variables cover the router status and a text variable for every key square
   assert.equal(v.key_1_1, 'CAM 1');
   assert.equal(v.key_1_4, 'Take');
   for (const id of ['key_1_5', 'key_2_4', 'key_2_5']) assert.equal(v[id], '');
-  assert.equal(rt.variables().key_1_4, 'Take');
   const sent = host.values.length;
   await rt.press(1, 3);
   assert.equal(valuesSoFar(host).viewed, 'MON A');
@@ -131,6 +133,13 @@ test('variables cover the router status and a text variable for every key square
     host.values.slice(sent).every((x) => !('key_1_1' in x)),
     'unchanged variables are not sent again',
   );
+});
+
+test('a panel larger than the default page publishes every key square', async () => {
+  const cells = [{ r: 5, c: 9, kind: 'source', n: 0 }];
+  const { host } = await connect({ fake: await startFakeSode({ panel: panelOf(cells, { rows: 5, cols: 9 }) }) });
+  assert.ok('key_5_9_bg' in host.defs.at(-1));
+  assert.equal(valuesSoFar(host).key_5_9, 'CAM 1');
 });
 
 test('the router variable follows the stream, and is unknown without the status scope', async () => {
@@ -152,7 +161,7 @@ test('every colour the runtime shows has a Companion colour', async () => {
     presets: PRESETS,
     tally: { levels: [{ level: 1, label: '1' }], routes: [{ dst: 0, level: 1, src: 0 }] },
   });
-  const { rt } = await connect({ fake, over: { pollMs: 15 } });
+  const { rt, clock } = await connect({ fake, over: { pollMs: 1000 } });
   const seen = new Set();
   const snap = () => {
     for (let r = 1; r <= 3; r++) for (let c = 1; c <= 5; c++) seen.add(rt.look(r, c).colour);
@@ -169,6 +178,7 @@ test('every colour the runtime shows has a Companion colour', async () => {
   await rt.press(2, 1);
   snap();
   fake.status = { router: 'down', routerUp: false, error: true };
+  clock.advance(1000);
   await until(() => rt.status().code === 'offline', 'Offline');
   snap();
   for (const colour of seen) assert.ok(colour in COLOURS, `no Companion colour for ${colour}`);
@@ -177,7 +187,7 @@ test('every colour the runtime shows has a Companion colour', async () => {
 
 test('the press action presses on down and releases on up', async () => {
   const calls = [];
-  const runtime = { press: async (r, c) => calls.push(['press', r, c]), release: (r, c) => calls.push(['release', r, c]) };
+  const runtime = { press: async (r, c) => calls.push(['press', r, c]), release: () => calls.push(['release']) };
   const { press } = actionDefinitions(() => runtime);
   assert.deepEqual(
     press.options.find((o) => o.id === 'event').choices.map((x) => x.id),
@@ -185,10 +195,7 @@ test('the press action presses on down and releases on up', async () => {
   );
   await press.callback({ options: { row: 2, col: 3, event: 'down' } });
   await press.callback({ options: { row: 2, col: 3, event: 'up' } });
-  assert.deepEqual(calls, [
-    ['press', 2, 3],
-    ['release', 2, 3],
-  ]);
+  assert.deepEqual(calls, [['press', 2, 3], ['release']]);
 });
 
 const lastDefs = (host) => host.defs.at(-1);
@@ -243,8 +250,9 @@ test('the pulse sends no colour updates once nothing is staged', async () => {
 });
 
 test('Offline overrides every key square colour', async () => {
-  const { rt, host, fake } = await connect({ over: { pollMs: 15 } });
+  const { rt, host, fake, clock } = await connect({ over: { pollMs: 1000 } });
   fake.status = { router: 'down', routerUp: false, error: true };
+  clock.advance(1000);
   await until(() => rt.status().code === 'offline', 'Offline');
   const v = valuesSoFar(host);
   for (const { r, c } of rt.squares()) {

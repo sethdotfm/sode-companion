@@ -27,7 +27,7 @@ Never paste a key into chat or commit it. The Generator takes no key. The tests 
 ## Known limits
 
 - One panel per connection. Two independent surfaces need two connections with two device names.
-- No paging. A panel larger than the Companion grid shows the key squares inside the grid from the top left and ignores the rest.
+- No paging. Generate a page at least as large as the panel: a panel key square past the page's size has no button.
 - Needs Companion 5.1 or later.
 - Only a panel's API client instance key works. Panels that act as a user are not supported.
 

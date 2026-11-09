@@ -49,6 +49,7 @@ async function connect(over = {}, panelExtra = {}) {
     key: KEY,
     device: 'Deck',
     pollMs: 0,
+    liveMs: 0,
     now: clock.now,
     timers: clock.timers,
   });

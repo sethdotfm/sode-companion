@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 import { until } from './until.js';
+import { fakeClock } from './fake-clock.js';
 
 const open = [];
 afterEach(async () => {
@@ -38,8 +39,8 @@ const PRESETS = {
   ],
 };
 
-// clock.t is the injected time; the hold timer itself still runs on real time.
-async function connect({ settings = {}, protectedDsts, presetsRefuse, takeReply } = {}) {
+// clock.t is the injected time; the timers stay real unless over injects some.
+async function connect({ settings = {}, protectedDsts, presetsRefuse, takeReply, over = {} } = {}) {
   const clock = { t: 1000 };
   const fake = await startFakeSode({
     panel: panelOf(CELLS, { settings }),
@@ -49,7 +50,7 @@ async function connect({ settings = {}, protectedDsts, presetsRefuse, takeReply 
     takeReply,
   });
   fake.presetsRefuse = presetsRefuse;
-  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, pollMs: 15, now: () => clock.t });
+  const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, pollMs: 15, now: () => clock.t, ...over });
   open.push(
     () => rt.stop(),
     () => fake.close(),
@@ -185,6 +186,19 @@ test('a hold guard fires after 0.8 seconds held and shows its fill meanwhile', a
   clock.t += 400;
   await until(() => fake.takes.length === 1, 'the held take');
   assert.equal(look(rt, TAKE).fill, undefined);
+});
+
+test('the hold guard runs on the injected timers', async () => {
+  const clock = fakeClock();
+  const { rt, fake } = await connect({ settings: { guard: 'hold' }, over: { now: clock.now, timers: clock.timers, pollMs: 0, liveMs: 0 } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  clock.advance(400);
+  assert.equal(look(rt, TAKE).fill, 0.5);
+  assert.equal(fake.takes.length, 0);
+  clock.advance(400);
+  await until(() => fake.takes.length === 1, 'the held take', 300);
 });
 
 test('releasing a hold early cancels it', async () => {

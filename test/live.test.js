@@ -108,6 +108,17 @@ test('ping, unknown and topic-less change frames are ignored', async () => {
   assert.notDeepEqual(rt.variables(), before);
 });
 
+test('while the stream is up only a slow read tells the shell anything', async () => {
+  const { rt, fake } = await connect({}, { pollMs: 20, liveMs: 0, rereadMs: 0 });
+  await pollsStopped(fake);
+  const slow = () => fake.requests.filter((q) => q.path === '/api/v1/protected').length;
+  const before = slow();
+  let told = 0;
+  rt.onChange(() => told++);
+  await sleep(300);
+  assert.ok(told <= slow() - before + 1, `${told} changes for ${slow() - before} slow reads`);
+});
+
 test('while the stream is up the tally is re-read every 30 s, so a missed delta heals', async () => {
   const clock = fakeClock();
   const { rt, fake } = await connect({}, { timers: clock.timers });

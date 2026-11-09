@@ -27,6 +27,6 @@ Variables hold the viewed destination, its current source, the staged count, the
 ## Known limits
 
 - One panel per connection. Use two connections, with two device names, for two independent surfaces.
-- No paging. A panel larger than the Companion grid shows the key squares that fall inside it from the top left, and ignores the rest.
+- No paging. Generate a page at least as large as the panel: a panel key square past the page's size has no button.
 - Needs Companion 5.1 or later.
 - Only a panel's API client instance key works. User keys and panels that act as a user are not supported.

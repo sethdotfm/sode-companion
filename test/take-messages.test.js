@@ -145,10 +145,3 @@ test('a hidden-text Cell on the route speaks the prompt, and only the root squar
   assert.equal(look(rt, [2, 1]).text, 'Press\nTake\nagain');
   assert.equal(look(rt, [2, 2]).text, '');
 });
-
-test('the key variables carry the prompt too', async () => {
-  const { rt } = await connect({ takeMessages: true });
-  await stage(rt);
-  await press(rt, TAKE);
-  assert.equal(rt.variables().key_1_2, 'Press\nTake\nagain');
-});

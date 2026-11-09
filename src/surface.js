@@ -12,13 +12,15 @@ import {
   squareSideVariable,
 } from './visible.js';
 import { pulseLevel } from './timing.js';
-import { COLOURS, textOn, textFor, WHITE } from './colours.js';
+import { COLOURS, textOn, textFor, channelsOf, rgbOf, WHITE } from './colours.js';
 
 export { COLOURS };
 
-const channels = (fn) => [16, 8, 0].reduce((out, shift) => out | (fn(shift) << shift), 0);
-const scale = (rgb, f) => channels((sh) => Math.round(((rgb >> sh) & 255) * f));
-const blend = (a, b, t) => channels((sh) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t));
+const scale = (rgb, f) => rgbOf(channelsOf(rgb).map((v) => Math.round(v * f)));
+const blend = (a, b, t) => {
+  const to = channelsOf(b);
+  return rgbOf(channelsOf(a).map((v, i) => Math.round(v * (1 - t) + to[i] * t)));
+};
 
 // A pulse phase dims the state colour; 0 is steady.
 const bgOf = ({ colour, pulse }) => {
@@ -58,7 +60,7 @@ export const actionDefinitions = (runtimeOf) => ({
     ],
     callback: async ({ options }) => {
       const runtime = runtimeOf();
-      if (options.event === 'up') runtime?.release(options.row, options.col);
+      if (options.event === 'up') runtime?.release();
       else await runtime?.press(options.row, options.col);
     },
   },
@@ -143,21 +145,21 @@ export function createSurface({ runtime, host, label }) {
   const loaded = () => runtime.grid().rows > 0;
   const squaresOf = () => (loaded() ? runtime.squares() : placeholderSquares());
 
-  // Text variables plus a colour pair per key square, from the same look the feedback styles.
+  // Every per-square variable, from the same look the feedback styles.
   const valuesOf = () => {
     const out = runtime.variables();
     for (const { r, c } of squaresOf()) {
       const look = loaded() ? runtime.look(r, c) : PLACEHOLDER;
       const style = styleOf(look);
-      out[squareVariable(r, c)] ??= look.text;
+      out[squareVariable(r, c)] = look.text;
       out[squareBgVariable(r, c)] = style.bgcolor;
       const inset = look.picture && look.border ? 1 : 0;
       // The label sits on the dark inset plate, so it is light whatever the state colour; an Icon key keeps the solid fill.
       out[squareFgVariable(r, c)] = inset ? WHITE : style.color;
       out[squarePictureVariable(r, c)] = look.picture ?? '';
-      out[squareOpacityVariable(r, c)] = look.picture ? (look.opacity ?? 100) : 100;
+      out[squareOpacityVariable(r, c)] = look.picture ? look.opacity : 100;
       out[squareInsetVariable(r, c)] = inset;
-      for (const side of SIDES) out[squareSideVariable(r, c, side)] = look.picture && (look.edges?.[side] ?? true) ? look.border : 0;
+      for (const side of SIDES) out[squareSideVariable(r, c, side)] = look.picture && look.edges[side] ? look.border : 0;
     }
     return out;
   };
@@ -167,9 +169,9 @@ export function createSurface({ runtime, host, label }) {
     sync() {
       const { code, text } = runtime.status();
       host.updateStatus(code, text);
-      const now = shapeOf();
-      if (now !== shape) {
-        shape = now;
+      const shapeNow = shapeOf();
+      if (shapeNow !== shape) {
+        shape = shapeNow;
         sent = {};
         const cells = runtime.cells();
         host.setVariableDefinitions(variableDefinitionsOf(squaresOf()));
