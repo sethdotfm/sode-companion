@@ -205,47 +205,15 @@ test('a refused take flashes on the Take key', async () => {
   assert.equal(rt.variables().error, 'The router is busy');
 });
 
-test('the view and plan clear after 30 idle seconds of no presses', async () => {
+test("the view and plan have no idle clock, as on Sode's panel page", async () => {
   const { rt, clock } = await connect();
   await press(rt, DST_A);
   await press(rt, SRC2);
-  clock.advance(29_000);
+  clock.advance(600_000);
   assert.equal(look(rt, DST_A).colour, 'destination-staged');
-  await press(rt, DST_B);
-  clock.advance(29_000);
-  assert.equal(look(rt, DST_A).colour, 'destination-staged');
-  clock.advance(1_001);
-  assert.equal(look(rt, DST_A).colour, 'destination');
-  assert.equal(look(rt, DST_B).colour, 'destination');
-  assert.equal(look(rt, TAKE).colour, 'take');
-  assert.equal(rt.variables().staged, 0);
-  assert.equal(rt.variables().viewed, '');
-  assert.equal(clock.pending(), 0);
-});
-
-test('the idle clear never runs during a take', async () => {
-  let release;
-  const held = new Promise((ok) => (release = ok));
-  const { rt, clock } = await connect({
-    takeReply: async (body) => {
-      await held;
-      return { status: 200, body: { ok: true, results: body.routes.map((r) => ({ ...r, result: 'failed', ok: false })) } };
-    },
-  });
-  await press(rt, DST_A);
-  await press(rt, SRC2);
-  const taking = press(rt, TAKE);
-  clock.advance(60_000);
   assert.equal(rt.variables().staged, 1);
   assert.equal(rt.variables().viewed, 'MON A');
-  release();
-  await taking;
-  assert.equal(look(rt, DST_A).text, 'MON A\nFailed');
-  // The idle count restarts when the take ends, so a failed route stays staged for another 30 seconds.
-  clock.advance(29_000);
-  assert.equal(rt.variables().staged, 1);
-  clock.advance(1_001);
-  assert.equal(rt.variables().staged, 0);
+  assert.equal(clock.pending(), 1, 'only the pulse timer runs');
 });
 
 test('the pulse breathes between 72% and 100% of the state colour', () => {
@@ -324,30 +292,26 @@ test('the confirm Take is amber, apart from the red armed Take', () => {
   assert.equal(styleOf({ text: 'Press\nagain', colour: 'take-confirm', pulse: 0 }).color, 0x14131f);
 });
 
-test('a hold guard keeps the armed look and its fill, with no confirm text', async () => {
+test('a hold guard keeps the armed look and its fill, and asks to keep holding while the press lasts', async () => {
   const { rt } = await connect({}, { settings: { guard: 'hold' } });
   await press(rt, DST_A);
   await press(rt, SRC2);
   await press(rt, TAKE);
   assert.equal(look(rt, TAKE).colour, 'take-armed');
-  assert.equal(look(rt, TAKE).text, 'Take');
+  assert.equal(look(rt, TAKE).text, 'Keep\nholding');
   assert.equal(look(rt, TAKE).fill, 0);
   rt.release();
+  assert.equal(look(rt, TAKE).text, 'Take');
 });
 
-test('after a take the view survives until 30 idle seconds, then view and plan clear', async () => {
+test('after a take the view stays until Clear, however long the panel sits', async () => {
   const { rt, clock } = await connect();
   await press(rt, DST_A);
   await press(rt, SRC2);
-  clock.advance(20_000);
   await press(rt, TAKE);
   assert.equal(rt.variables().staged, 0);
-  clock.advance(1_501);
+  clock.advance(600_000);
   assert.equal(look(rt, DST_A).colour, 'destination-view');
   assert.equal(rt.variables().viewed, 'MON A');
-  clock.advance(28_000);
-  assert.equal(rt.variables().viewed, 'MON A');
-  clock.advance(1_000);
-  assert.equal(rt.variables().viewed, '');
-  assert.equal(look(rt, DST_A).colour, 'destination');
+  assert.equal(clock.pending(), 0);
 });

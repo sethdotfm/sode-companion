@@ -37,7 +37,7 @@ The Generator emits a button for every key square of the panel inside the Compan
 
 Other divergences from Sode's web page, kept in the runtime (`src/runtime.js`, `src/timing.js`), not the vendored model:
 
-- After a take the viewed destination stays viewed. Only Clear, the 30 s idle clear or a newly applied panel drops it.
+- After a take the viewed destination stays viewed. Only Clear or a newly applied panel drops it. Sode's page has no idle clear (upstream removed it from the model), so neither has the module.
 - A double-press Take shows "Press\nagain" in `take-confirm` (amber) from the first press until the 1.5 s window lapses or the second press fires. The hold guard keeps the armed look and its fill.
 - Take colours (`take-armed` red, `take-confirm` amber) mirror Sode's `web/panels.css` and need a manual re-check when Sode changes them.
 - The pulse has 4 phases of 333 ms (500 ms at 1.5x speed), breathing between 72% and 100% of the state colour.

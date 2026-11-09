@@ -129,7 +129,7 @@ export function createRuntime({
     timing.sync();
     listeners.forEach((fn) => fn());
   };
-  const timing = createTiming({ timers, now, read: () => state, write: (next) => (state = next), notify: changed });
+  const timing = createTiming({ timers, now, read: () => state, notify: changed });
 
   const set = (code, text = FAILS[code]) => {
     status = { code, text };
@@ -435,7 +435,7 @@ export function createRuntime({
         const look = confirm
           ? { text: 'Press\nagain', colour: 'take-confirm', pulse: 1 }
           : { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
-        return state.holdAt ? { ...look, fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) } : look;
+        return state.holdAt ? { ...look, text: 'Keep\nholding', fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) } : look;
       }
       case 'preset': {
         if (!presetsOpen) return { text: 'Unavailable', colour: 'unavailable', pulse: 0 };
@@ -476,7 +476,6 @@ export function createRuntime({
     } catch {
       state = model.failTake(state, 'unreachable', 'Sode did not answer the take', now());
     }
-    state = { ...state, touchedAt: now() };
     changed();
     if (!stopped) refreshTally();
     settle();
@@ -542,7 +541,7 @@ export function createRuntime({
           changed();
           return confirmInstant();
         case 'clear':
-          state = model.pressClear(state, now());
+          state = model.clear(state);
           hold.stop();
           break;
         case 'take': {
@@ -592,8 +591,8 @@ export function createRuntime({
       // Icon B is text, so it cannot share a raster Artwork picture; beside Artwork it is not drawn.
       const glyph = artIdOf(cell) ? '' : glyphOf(cell);
       const iconPicture = (icon || glyph) && iconAt(cell, r, c, icon, glyph, cell.hideText === true ? WHITE : textFor(colour));
-      // A Result, refusal or "Press again" still speaks over hidden text.
-      const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm';
+      // A Result, refusal, "Press again" or "Keep holding" still speaks over hidden text.
+      const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm' || fill !== undefined;
       return {
         text: root && (speaks || !textHidden(cell)) ? text : '',
         colour,
