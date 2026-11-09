@@ -1,7 +1,11 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
-import { cellsIn, namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
+import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
+import { createHold } from './hold.js';
+import { deviceName, startInstance } from './instance.js';
+import { COMPANION_GRID, visibleSquares } from './visible.js';
+import { createLivePanel } from './live-panel.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -17,6 +21,7 @@ const FAILS = {
   unreachable: 'Sode did not answer. Check the host, port and TLS choice.',
   offline: 'Sode or the router is not answering. Every key shows Offline until it does.',
   'bad-config': 'Set the host, port, panel and key in the connection settings.',
+  'bad-device': 'The device name is over 40 characters. Shorten it, or the connection label when the device name is blank.',
 };
 
 export const FAILURE_CODES = Object.keys(FAILS);
@@ -38,7 +43,7 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -46,7 +51,11 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let drawn = [];
   let stopped = false;
   let timer = 0;
+  let stopInstance = null;
+  const name = deviceName(device, label);
   let pollTimer = 0;
+  let liveTimer = 0;
+  let live = null;
   let polls = 0;
   let st = model.createState();
   let env = envFrom({}, {});
@@ -70,9 +79,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
 
   // Protected and presets are read only when slow is set; the last read stands between.
   let slowReads = [{}, {}];
+  // False when the key lacks the presets scope (403), so Preset cells say so instead of "no preset".
+  let presetsOpen = true;
+  const readPresets = () =>
+    get('presets').then(
+      (r) => ((presetsOpen = true), r),
+      (e) => ((presetsOpen = e.http !== 403), {}),
+    );
   async function readRouter(slow, withTally = true) {
     if (withTally) tallyRaw = await get('tally');
-    if (slow) slowReads = await Promise.all([soft('protected'), soft('presets')]);
+    if (slow) slowReads = await Promise.all([soft('protected'), readPresets()]);
     rebuildEnv();
   }
 
@@ -93,7 +109,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   }
 
   // Offline is Sode not answering or the router down; either clears by itself.
-  function settle() {
+  function syncOffline() {
     const text = sodeLost ? 'Sode did not answer. Every key shows Offline until it does.' : routerUp === false ? 'Sode lost contact with the router. Every key shows Offline until it is back.' : '';
     if (text && (status.code !== 'offline' || status.text !== text)) set('offline', text);
     else if (!text && status.code === 'offline') set('ok', `Panel ${panel.name}`);
@@ -110,21 +126,23 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
         await readStatus();
       }
       sodeLost = false;
-      settle();
+      syncOffline();
       changed();
     } catch (e) {
       // A refusal ends all attempts; anything else is a lost Sode.
       if (e.fail && e.fail !== 'unreachable') return refuse(e.fail);
       log(`poll failed: ${e.fail || 'error'}`);
       sodeLost = true;
-      settle();
+      syncOffline();
     }
     if (!stopped && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
   }
 
   function refuse(code) {
     clearTimeout(pollTimer);
+    clearTimeout(liveTimer);
     stream?.close();
+    stopInstance?.();
     set(code);
   }
 
@@ -135,9 +153,33 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       rebuildEnv();
     } else if (topic === 'status') {
       routerUp = data.routerUp;
-      settle();
+      syncOffline();
     } else return;
     changed();
+  }
+
+  // Only Cells with a Root square inside the Companion grid are kept; the rest are ignored without an error.
+  const drawnOf = (p) => visibleSquares(p, grid).filter((s) => s.root).map((s) => s.cell);
+
+  // Applies a newer panel copy once the rules allow. The viewed destination is carried over.
+  function settle() {
+    const fresh = live?.due({ busy: st.busy, viewed: !!st.view, staged: st.staged.length > 0 }, now());
+    if (!fresh) return;
+    panel = fresh;
+    drawn = drawnOf(fresh);
+    st = model.carryView(model.createState(fresh.settings), st, drawn);
+    changed();
+  }
+
+  async function checkPanel() {
+    if (stopped) return;
+    try {
+      live.notice(await get(`panels/${encodeURIComponent(panelRef)}`), now());
+    } catch {
+      // A failed read leaves the panel as it is; the next check tries again.
+    }
+    settle();
+    if (!stopped) liveTimer = setTimeout(checkPanel, liveMs);
   }
 
   const get = async (path) => {
@@ -158,14 +200,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       if (stopped) return;
       panel = p;
       names = namesFrom(nm);
-      drawn = cellsIn(p).sort((a, b) => a.r - b.r || a.c - b.c);
+      drawn = drawnOf(p);
+      live = createLivePanel(p.rev);
       st = model.createState(p.settings);
       await readRouter(true);
       await readStatus();
       if (stopped) return;
       sodeLost = false;
+      stopInstance ??= startInstance({ base, panelId: p.id, key, device: name, fetch: doFetch, retryMs, log });
       set('ok', `Panel ${p.name}`);
-      settle();
+      syncOffline();
       stream ||= openStream({
         base,
         key,
@@ -175,13 +219,15 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
         onUp: () => {
           streamUp = true;
           sodeLost = false;
-          settle();
+          syncOffline();
         },
         onDown: () => (streamUp = false),
         onFrame,
       });
       clearTimeout(pollTimer);
       if (pollMs > 0) pollTimer = setTimeout(poll, pollMs);
+      clearTimeout(liveTimer);
+      if (liveMs > 0) liveTimer = setTimeout(checkPanel, liveMs);
     } catch (e) {
       if (stopped) return;
       // A refusal ends the attempts: only a changed key, list or panel helps. A lost connection is retried.
@@ -208,7 +254,13 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       }
       case 'take': {
         const armed = model.armed(st, env);
-        return { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
+        const look = { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
+        return st.holdAt ? { ...look, fill: Math.min(1, (now() - st.holdAt) / model.GUARD_HOLD_MS) } : look;
+      }
+      case 'preset': {
+        if (!presetsOpen) return { text: 'Unavailable', colour: 'unavailable', pulse: 0 };
+        const pending = model.presetState(st, cell, env) === 'pending';
+        return { text, colour: pending ? 'preset-pending' : 'preset', pulse: pending ? 1 : 0 };
       }
       case 'current': {
         if (!st.view) return { text: cell.caption || 'Currently', colour: 'current', pulse: 0 };
@@ -220,10 +272,9 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     }
   }
 
-  const cellAt = (r, c) => drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
+  const cellAt = (r, c) => r <= grid.rows && c <= grid.cols && drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
 
-  async function sendTake() {
-    const started = model.startTake(st, env, now());
+  async function sendTake(started = model.startTake(st, env, now())) {
     if (!started) return;
     st = started.state;
     changed();
@@ -246,9 +297,25 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   // One extra tally read after a take, so the keys show what the router did without waiting for the next tick.
   const poll1 = () => readRouter(false).then(changed, () => {});
 
+  const hold = createHold({
+    ms: model.GUARD_HOLD_MS,
+    tick: () => changed(),
+    async due() {
+      hold.stop();
+      const g = model.guardHeld(st, now());
+      st = g.state;
+      changed();
+      if (g.go) await sendTake();
+    },
+  });
+
+  // Instant mode: the press that staged something is the Confirm. A refused press leaves an older failed route staged, so it must not resend.
+  const confirmInstant = () => (st.error ? undefined : sendTake(model.startInstant(st, env, now())));
+
   return {
     async start() {
       if (!host || !port || !panelRef || !key) return set('bad-config');
+      if (name === null) return set('bad-device');
       set('connecting', 'Connecting');
       await load();
     },
@@ -257,8 +324,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       clearTimeout(timer);
       clearTimeout(pollTimer);
       stream?.close();
+      hold.stop();
+      stopInstance?.();
+      clearTimeout(liveTimer);
     },
-    release() {},
+    release() {
+      if (!st.holdAt) return;
+      hold.stop();
+      st = model.guardCancel(st);
+      changed();
+    },
     async press(r, c) {
       const cell = cellAt(r, c);
       if (!cell || status.code !== 'ok') return;
@@ -269,20 +344,31 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
           break;
         case 'source':
           st = model.pressSource(st, cell, env, now());
-          break;
+          changed();
+          return confirmInstant();
+        case 'preset':
+          if (!presetsOpen) return;
+          st = model.pressPreset(st, cell, env, now());
+          changed();
+          return confirmInstant();
         case 'clear':
           st = model.pressClear(st, now());
+          hold.stop();
           break;
         case 'take': {
+          // An unarmed press must not start a guard that a later arming would complete.
+          if (!model.armed(st, env)) return;
           const g = model.guardDown(st, now());
           st = g.state;
           if (g.go) await sendTake();
+          else if (st.holdAt) hold.start();
           break;
         }
         default:
           return;
       }
       if (st !== before) changed();
+      settle();
     },
     variables() {
       const view = st.view;
@@ -303,8 +389,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
       if (status.code === 'offline') return { text: root ? 'Offline' : '', colour: 'offline', pulse: 0 };
-      const { colour, pulse, text } = cellLook(cell);
-      return { text: root ? text : '', colour, pulse };
+      const { colour, pulse, text, fill } = cellLook(cell);
+      return { text: root ? text : '', colour, pulse, ...(fill === undefined ? {} : { fill }) };
     },
   };
 }
