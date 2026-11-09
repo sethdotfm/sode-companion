@@ -12,6 +12,7 @@ const MAP = {
   'bad-config': InstanceStatus.BadConfig,
   'bad-device': InstanceStatus.BadConfig,
   'api-off': InstanceStatus.ConnectionFailure,
+  offline: InstanceStatus.ConnectionFailure,
   unreachable: InstanceStatus.ConnectionFailure,
 };
 
