@@ -81,31 +81,30 @@ test('names pushed on the stream rename the keys', async () => {
   await until(() => rt.look(...SRC1).text === 'GFX', 'the new name');
 });
 
-// Real Sode sends deltas without a topic; docs/api.md shows one. Both must work.
-for (const deltaTopic of [false, true]) {
-  const shape = deltaTopic ? 'with' : 'without';
-  test(`tally, names and status deltas ${shape} a topic reach the keys`, async () => {
-    const { rt, fake } = await connect({ deltaTopic });
-    await rt.press(...DST_A);
-    fake.push('tally', { routes: [route(0, 1, 1)] });
-    await until(() => rt.look(...SRC2).colour === 'source-current', 'the tally delta');
-    fake.push('names', { numberOffset: 1, sources: [{ n: 0, name: 'GFX' }], destinations: [{ n: 0, name: 'MON A' }] });
-    await until(() => rt.look(...SRC1).text === 'GFX', 'the names delta');
-    fake.push('status', { router: 'down', routerUp: false, error: true });
-    await until(() => rt.look(...SRC1).colour === 'offline', 'the status delta');
-  });
-}
+test('tally, names and status change frames reach the keys', async () => {
+  const { rt, fake } = await connect();
+  await rt.press(...DST_A);
+  fake.push('tally', { routes: [route(0, 1, 1)] });
+  await until(() => rt.look(...SRC2).colour === 'source-current', 'the tally frame');
+  fake.push('names', { numberOffset: 1, sources: [{ n: 0, name: 'GFX' }], destinations: [{ n: 0, name: 'MON A' }] });
+  await until(() => rt.look(...SRC1).text === 'GFX', 'the names frame');
+  fake.push('status', { router: 'down', routerUp: false, error: true });
+  await until(() => rt.look(...SRC1).colour === 'offline', 'the status frame');
+});
 
-test('ping and unknown frames are ignored', async () => {
+test('ping, unknown and topic-less change frames are ignored', async () => {
   const { rt, fake } = await connect();
   await rt.press(...DST_A);
   const before = rt.variables();
   fake.pushRaw({ t: 'ping' });
   fake.pushRaw({ t: 'ping', topic: 'tally', data: {} });
-  fake.pushRaw({ t: 'mystery', data: { routes: [route(0, 1, 1)] } });
+  fake.pushRaw({ t: 'mystery', topic: 'mystery', data: { routes: [route(0, 1, 1)] } });
   fake.pushRaw({ t: 'tally', data: { routes: [route(0, 1, 1)] } });
+  fake.pushRaw({ t: 'status', data: { router: 'down', routerUp: false, error: true } });
+  fake.push('tally', { routes: [route(0, 1, 1)] });
   await until(() => rt.look(...SRC2).colour === 'source-current', 'the frame after the ignored ones');
   assert.equal(rt.status().code, 'ok');
+  assert.equal(rt.look(...SRC1).colour, 'source');
   assert.notDeepEqual(rt.variables(), before);
 });
 

@@ -46,7 +46,7 @@ const wsFrame = (text) => {
 // opts.panel, opts.names; opts.refuse = { status, code } answers every call with that error.
 // opts.stream = true serves GET /stream as a WebSocket. Off by default, so the upgrade answers 404 and the runtime polls.
 // fake.streamEnabled turns it off and on later; fake.push(t, data) sends a delta frame; fake.dropStream() closes every socket.
-// Real Sode (Beta 1.8.1) sends deltas without a topic, unlike docs/api.md: fake.deltaTopic = true (or opts.deltaTopic) adds it. fake.pushRaw(frame) sends any frame as is.
+// fake.pushRaw(frame) sends any frame as is, for frames push() would not build.
 // fake.fail = { path, status, code } answers that one path with an error. fake.noStatusScope makes /status and the status topic 403 scope. fake.upgrades records each upgrade attempt.
 export async function startFakeSode(opts = {}) {
   const fake = {
@@ -67,7 +67,6 @@ export async function startFakeSode(opts = {}) {
     status: opts.status || { router: 'up', routerUp: true, error: false },
     noStatusScope: false,
     streamEnabled: !!opts.stream,
-    deltaTopic: !!opts.deltaTopic,
     upgrades: [],
     sockets: new Set(),
     takeReply:
@@ -137,7 +136,7 @@ export async function startFakeSode(opts = {}) {
   fake.pushRaw = (frame) => {
     for (const sock of fake.sockets) sock.write(wsFrame(JSON.stringify(frame)));
   };
-  fake.push = (t, data) => fake.pushRaw(fake.deltaTopic ? { t, topic: t, data } : { t, data });
+  fake.push = (t, data) => fake.pushRaw({ t, topic: t, data });
   fake.dropStream = () => {
     for (const sock of fake.sockets) sock.destroy();
     fake.sockets.clear();
