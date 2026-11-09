@@ -1,7 +1,8 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
-import { createSurface, actionDefinitions, COLOURS } from '../src/surface.js';
+import { createSurface, actionDefinitions, styleOf, COLOURS } from '../src/surface.js';
+import { textOn, WHITE } from '../src/colours.js';
 import { fakeClock } from './fake-clock.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 import { until, quiet } from './until.js';
@@ -188,4 +189,79 @@ test('the press action presses on down and releases on up', async () => {
     ['press', 2, 3],
     ['release', 2, 3],
   ]);
+});
+
+const lastDefs = (host) => host.defs.at(-1);
+
+test('every key square, blank ones included, has a background and a text colour variable; squares past the panel have none', async () => {
+  const { host } = await connect();
+  const defs = lastDefs(host);
+  for (let r = 1; r <= 3; r++)
+    for (let c = 1; c <= 5; c++) for (const id of [`key_${r}_${c}`, `key_${r}_${c}_bg`, `key_${r}_${c}_fg`]) assert.ok(id in defs, id);
+  assert.ok(!('key_4_1_bg' in defs) && !('key_1_6_fg' in defs));
+  const v = valuesSoFar(host);
+  assert.equal(v.key_1_1_bg, COLOURS.source);
+  assert.equal(v.key_1_1_fg, textOn(COLOURS.source));
+  assert.equal(v.key_2_3_bg, COLOURS.blank, 'a blank square');
+  assert.equal(v.key_2_3_fg, WHITE);
+  assert.equal(v.key_1_5_bg, COLOURS.take, 'a merged Cell colours all its squares');
+});
+
+test('colour variables follow styleOf of the look, including the pulse, and are sent only when they change', async () => {
+  const { rt, host, clock } = await connect();
+  await rt.press(1, 3);
+  await rt.press(1, 2);
+  const matches = () => {
+    const v = valuesSoFar(host);
+    for (const { r, c } of rt.squares()) {
+      const style = styleOf(rt.look(r, c));
+      assert.equal(v[`key_${r}_${c}_bg`], style.bgcolor, `bg ${r},${c}`);
+      assert.equal(v[`key_${r}_${c}_fg`], style.color, `fg ${r},${c}`);
+    }
+  };
+  matches();
+  const seen = new Set();
+  for (let i = 0; i < 8; i++) {
+    const sent = host.values.length;
+    clock.advance(500);
+    matches();
+    seen.add(valuesSoFar(host).key_1_3_bg);
+    for (const batch of host.values.slice(sent)) assert.ok(!('key_1_1_bg' in batch), 'an idle key is not resent');
+  }
+  assert.ok(seen.size > 1, 'the staged Destination breathes');
+});
+
+test('the pulse sends no colour updates once nothing is staged', async () => {
+  const { rt, host, clock } = await connect();
+  await rt.press(1, 3);
+  await rt.press(1, 2);
+  await rt.press(2, 2);
+  assert.equal(valuesSoFar(host).key_1_3_bg, COLOURS.destination);
+  const sent = host.values.length;
+  for (let i = 0; i < 16; i++) clock.advance(500);
+  assert.equal(host.values.length, sent);
+});
+
+test('Offline overrides every key square colour', async () => {
+  const { rt, host, fake } = await connect({ over: { pollMs: 15 } });
+  fake.status = { router: 'down', routerUp: false, error: true };
+  await until(() => rt.status().code === 'offline', 'Offline');
+  const v = valuesSoFar(host);
+  for (const { r, c } of rt.squares()) {
+    assert.equal(v[`key_${r}_${c}_bg`], COLOURS.offline, `bg ${r},${c}`);
+    assert.equal(v[`key_${r}_${c}_fg`], WHITE);
+  }
+});
+
+test('before the panel loads, the colour variables hold a blank background and white text over the default grid', async () => {
+  const clock = fakeClock();
+  const rt = createRuntime({ host: '', port: 0, panel: '', key: '', now: clock.now, timers: clock.timers });
+  const host = hostOf();
+  const surface = createSurface({ runtime: rt, host, label: 'sode' });
+  rt.onChange(surface.sync);
+  await rt.start();
+  const v = valuesSoFar(host);
+  assert.equal(Object.keys(lastDefs(host)).filter((id) => id.endsWith('_bg')).length, 32);
+  for (const id of ['key_1_1_bg', 'key_4_8_bg']) assert.equal(v[id], COLOURS.blank);
+  for (const id of ['key_1_1_fg', 'key_4_8_fg']) assert.equal(v[id], WHITE);
 });

@@ -6,6 +6,9 @@ export const COMPANION_GRID = { rows: 4, cols: 8 };
 
 // Name of the text variable that carries a key square's text.
 export const squareVariable = (r, c) => `key_${r}_${c}`;
+// Names of the colour variables (0xRRGGBB numbers) that the generated buttons' layer expressions read.
+export const squareBgVariable = (r, c) => `${squareVariable(r, c)}_bg`;
+export const squareFgVariable = (r, c) => `${squareVariable(r, c)}_fg`;
 
 // Key squares inside the grid, counted from the top left, in row order. Squares past it are dropped without an error.
 // A merged Cell keeps the squares that fit; root is true on its top-left square only.

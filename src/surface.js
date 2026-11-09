@@ -1,6 +1,6 @@
 // The Companion shell's logic without Companion's classes, so tests can drive it with a fake host.
 // main.js is the only file that imports @companion-module/base.
-import { squareVariable } from './visible.js';
+import { COMPANION_GRID, squareVariable, squareBgVariable, squareFgVariable } from './visible.js';
 import { pulseLevel } from './timing.js';
 import { COLOURS, textOn } from './colours.js';
 
@@ -78,11 +78,23 @@ const FIXED_VARIABLES = {
 
 const variableDefinitionsOf = (squares) => {
   const defs = { ...FIXED_VARIABLES };
-  for (const { r, c } of squares) defs[squareVariable(r, c)] = { name: `Text of row ${r} column ${c}` };
+  for (const { r, c } of squares) {
+    defs[squareVariable(r, c)] = { name: `Text of row ${r} column ${c}` };
+    defs[squareBgVariable(r, c)] = { name: `Background colour of row ${r} column ${c}` };
+    defs[squareFgVariable(r, c)] = { name: `Text colour of row ${r} column ${c}` };
+  }
   return defs;
 };
 
-// Style is a fallback; the look feedback recolours it and the text variable fills the label.
+// Layer expressions cannot fall back to a static value, so until a panel loads the whole default grid holds blank colours.
+const PLACEHOLDER = { text: '', colour: 'blank', pulse: 0 };
+const placeholderSquares = () => {
+  const out = [];
+  for (let r = 1; r <= COMPANION_GRID.rows; r++) for (let c = 1; c <= COMPANION_GRID.cols; c++) out.push({ r, c });
+  return out;
+};
+
+// Hand-built buttons use the look feedback over this style; generated pages read the colour variables instead.
 const presetsOf = (cells, label) => {
   const presets = {};
   for (const cell of cells) {
@@ -114,6 +126,21 @@ export function createSurface({ runtime, host, label }) {
   let shape = null;
   let hasPresets = false;
   let sent = {};
+  const loaded = () => runtime.grid().rows > 0;
+  const squaresOf = () => (loaded() ? runtime.squares() : placeholderSquares());
+
+  // Text variables plus a colour pair per key square, from the same look the feedback styles.
+  const valuesOf = () => {
+    const out = runtime.variables();
+    for (const { r, c } of squaresOf()) {
+      const look = loaded() ? runtime.look(r, c) : PLACEHOLDER;
+      const style = styleOf(look);
+      out[squareVariable(r, c)] ??= look.text;
+      out[squareBgVariable(r, c)] = style.bgcolor;
+      out[squareFgVariable(r, c)] = style.color;
+    }
+    return out;
+  };
 
   return {
     // Called on every runtime change, pulse steps included, so rebuilding is gated on the shape.
@@ -125,7 +152,7 @@ export function createSurface({ runtime, host, label }) {
         shape = now;
         sent = {};
         const cells = runtime.cells();
-        host.setVariableDefinitions(variableDefinitionsOf(runtime.squares()));
+        host.setVariableDefinitions(variableDefinitionsOf(squaresOf()));
         if (cells.length || hasPresets) {
           hasPresets = cells.length > 0;
           host.setPresetDefinitions(
@@ -134,7 +161,7 @@ export function createSurface({ runtime, host, label }) {
           );
         }
       }
-      const values = runtime.variables();
+      const values = valuesOf();
       const changed = Object.fromEntries(Object.entries(values).filter(([id, v]) => sent[id] !== v));
       if (Object.keys(changed).length) host.setVariableValues(changed);
       sent = values;

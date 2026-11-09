@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parse, stringify } from 'yaml';
 import { generatePage } from '../src/generator/index.js';
-import { actionDefinitions, feedbackDefinitions, COLOURS } from '../src/surface.js';
+import { actionDefinitions, feedbackDefinitions, createSurface, COLOURS } from '../src/surface.js';
+import { createRuntime } from '../src/runtime.js';
+import { fakeClock } from './fake-clock.js';
+import { startFakeSode, panelOf as sodePanelOf, KEY } from './fake-sode.js';
 
 const panelOf = (cells, over = {}) => ({
   id: 'p-1',
@@ -20,6 +23,9 @@ const panelOf = (cells, over = {}) => ({
 const controlAt = (doc, r, c) => doc.page.controls?.[r - 1]?.[c - 1];
 const layer = (btn, id) => btn.style.layers.find((l) => l.id === id);
 const textOf = (doc, r, c) => layer(controlAt(doc, r, c), 'text0').text.value;
+const expr = (name) => ({ isExpression: true, value: name });
+const bgOf = (doc, r, c) => layer(controlAt(doc, r, c), 'box0').color;
+const fgOf = (doc, r, c) => layer(controlAt(doc, r, c), 'text0').color;
 const squareCount = (doc) => Object.values(doc.page.controls).flatMap((row) => Object.keys(row)).length;
 const REAL = parse(readFileSync(new URL('./fixtures/speedtest-export.companionconfig', import.meta.url), 'utf8'));
 
@@ -55,13 +61,13 @@ test('a full grid gives one button per key square and matches the golden page', 
   assert.deepEqual(JSON.parse(JSON.stringify(doc)), JSON.parse(readFileSync(file, 'utf8')));
 });
 
-test('every generated action and feedback names the given connection', () => {
+test('every generated action names the given connection', () => {
   const doc = generatePage(panelOf(FULL), 'abc-999');
   let seen = 0;
   for (const row of Object.values(doc.page.controls)) {
     for (const btn of Object.values(row)) {
-      const refs = [...btn.feedbacks, ...Object.values(btn.steps).flatMap((s) => [...s.action_sets.down, ...s.action_sets.up])];
-      assert.equal(refs.length, 3);
+      const refs = Object.values(btn.steps).flatMap((s) => [...s.action_sets.down, ...s.action_sets.up]);
+      assert.equal(refs.length, 2);
       for (const ref of refs) assert.equal(ref.connectionId, 'abc-999');
       seen++;
     }
@@ -92,13 +98,11 @@ test('Cells with no Source, Destination or Preset and squares with no Cell still
     [2, 2],
   ]) {
     const btn = controlAt(doc, r, c);
-    assert.equal(layer(btn, 'box0').color.value, COLOURS.blank);
+    assert.deepEqual(bgOf(doc, r, c), expr(`$(sode:key_${r}_${c}_bg)`));
     assert.equal(textOf(doc, r, c), `$(sode:key_${r}_${c})`);
     assert.deepEqual(btn.steps[0].action_sets.down[0].options, pressOf(r, c, 'down'));
     assert.deepEqual(btn.steps[0].action_sets.up[0].options, pressOf(r, c, 'up'));
-    assert.equal(btn.feedbacks[0].definitionId, 'look');
   }
-  assert.equal(layer(controlAt(doc, 1, 4), 'box0').color.value, COLOURS.source);
 });
 
 test('a panel smaller than the Companion grid emits only its own squares', () => {
@@ -145,8 +149,8 @@ test('a merged Cell cut by the grid edge keeps the squares inside it', () => {
   const doc = generatePage(panelOf([{ r: 1, c: 2, kind: 'take', cs: 2 }], { rows: 1, cols: 3 }), 'c', { grid: { rows: 1, cols: 2 } });
   // Panel 1 by 3 in a 1 by 2 grid: the Take's second square at column 3 is cut, column 1 is blank.
   assert.deepEqual(Object.keys(doc.page.controls[0]), ['0', '1']);
-  assert.equal(layer(controlAt(doc, 1, 1), 'box0').color.value, COLOURS.blank);
-  assert.equal(layer(controlAt(doc, 1, 2), 'box0').color.value, COLOURS.take);
+  assert.deepEqual(bgOf(doc, 1, 1), expr('$(c:key_1_1_bg)'));
+  assert.deepEqual(bgOf(doc, 1, 2), expr('$(c:key_1_2_bg)'));
 });
 
 // Leaves become their type; the {value, isExpression} wrapper stays so a bare value where Companion wraps one fails.
@@ -172,7 +176,14 @@ test('a generated button has the real export layer set, keys and wrapped values'
     const got = made.style.layers[i];
     assert.deepEqual(Object.keys(got), Object.keys(l), l.id);
     for (const k of ['name', 'usage', 'type', 'pinnedProperties']) assert.deepEqual(got[k], l[k], `${l.id}.${k}`);
-    assert.deepEqual(shapeOf(got), shapeOf(l), l.id);
+    // Colours are expressions here and plain numbers in the export; only that one field differs in shape.
+    const plain = structuredClone(got);
+    if (l.id === 'box0' || l.id === 'text0') {
+      assert.equal(got.color.isExpression, true, `${l.id}.color`);
+      assert.equal(typeof got.color.value, 'string', `${l.id}.color`);
+      plain.color = l.color;
+    }
+    assert.deepEqual(shapeOf(plain), shapeOf(l), l.id);
   }
   assert.deepEqual(shapeOf(made.options), shapeOf(real.options));
   assert.deepEqual(Object.keys(made.steps), Object.keys(real.steps));
@@ -235,16 +246,17 @@ test('state colours are the dark patchbay accents of Sode panels', () => {
   assert.equal(COLOURS['result-failed'], 0xf0605a);
 });
 
-test('default backgrounds are the module colours for each Cell kind', () => {
-  const doc = generatePage(panelOf(FULL), 'c');
-  const bg = (r, c) => layer(controlAt(doc, r, c), 'box0').color.value;
-  assert.equal(bg(1, 1), COLOURS.source);
-  assert.equal(bg(2, 1), COLOURS.destination);
-  assert.equal(bg(3, 1), COLOURS.preset);
-  assert.equal(bg(1, 5), COLOURS.clear);
-  assert.equal(bg(2, 5), COLOURS.current);
-  assert.equal(bg(3, 4), COLOURS.take);
-  assert.equal(bg(3, 3), COLOURS.blank);
+test('colours come from layer expressions on the key square colour variables', () => {
+  const doc = generatePage(panelOf(FULL), 'c', { label: 'sode' });
+  for (const [r, c] of [
+    [1, 1],
+    [3, 3],
+    [3, 5],
+  ]) {
+    assert.deepEqual(bgOf(doc, r, c), expr(`$(sode:key_${r}_${c}_bg)`));
+    assert.deepEqual(fgOf(doc, r, c), expr(`$(sode:key_${r}_${c}_fg)`));
+    assert.equal(textOf(doc, r, c), `$(sode:key_${r}_${c})`);
+  }
 });
 
 test('the core imports nothing that needs Node', () => {
@@ -263,17 +275,69 @@ test('the core imports nothing that needs Node', () => {
   assert.ok(seen.size >= 4);
 });
 
-test('generated buttons use the one press action and the look feedback the module defines', () => {
+test('generated buttons use the module press action and carry no look feedback', () => {
   const actions = actionDefinitions(() => null);
-  const feedbacks = feedbackDefinitions(() => null);
   const choices = actions.press.options.find((o) => o.id === 'event').choices.map((x) => x.id);
-  const btn = controlAt(generatePage(panelOf([{ r: 1, c: 1, kind: 'source', n: 0 }]), 'c'), 1, 1);
-  const { down, up } = btn.steps[0].action_sets;
-  for (const ref of [...down, ...up]) {
-    assert.ok(ref.definitionId in actions);
-    assert.ok(choices.includes(ref.options.event.value));
+  const doc = generatePage(panelOf(FULL), 'c');
+  for (const row of Object.values(doc.page.controls)) {
+    for (const btn of Object.values(row)) {
+      assert.deepEqual(btn.feedbacks, []);
+      const { down, up } = btn.steps[0].action_sets;
+      for (const ref of [...down, ...up]) {
+        assert.ok(ref.definitionId in actions);
+        assert.ok(choices.includes(ref.options.event.value));
+      }
+      assert.deepEqual([down[0].options.event.value, up[0].options.event.value], ['down', 'up']);
+    }
   }
-  assert.deepEqual([down[0].options.event.value, up[0].options.event.value], ['down', 'up']);
-  assert.ok(btn.feedbacks[0].definitionId in feedbacks);
-  assert.deepEqual(btn.feedbacks[0].options, { row: { value: 1, isExpression: false }, col: { value: 1, isExpression: false } });
+  assert.ok('look' in feedbackDefinitions(() => null), 'the feedback stays for hand-built buttons');
+});
+
+test('every variable a generated button reads is defined by the module for the same panel', async () => {
+  const cells = FULL.map((c) => ({ ...c }));
+  const sodePanel = sodePanelOf(cells, { rows: 3, cols: 5 });
+  const doc = generatePage({ ...sodePanel, slug: 'speedtest' }, 'c', { label: 'sode' });
+  const fake = await startFakeSode({ panel: sodePanel });
+  const clock = fakeClock();
+  const rt = createRuntime({
+    host: '127.0.0.1',
+    port: fake.port,
+    panel: 'speedtest',
+    key: KEY,
+    pollMs: 0,
+    liveMs: 0,
+    now: clock.now,
+    timers: clock.timers,
+  });
+  const defs = {};
+  const values = {};
+  const host = {
+    updateStatus() {},
+    setVariableDefinitions: (d) => Object.assign(defs, d),
+    setPresetDefinitions() {},
+    setVariableValues: (v) => Object.assign(values, v),
+    checkFeedbacks() {},
+  };
+  const surface = createSurface({ runtime: rt, host, label: 'sode' });
+  rt.onChange(surface.sync);
+  try {
+    await rt.start();
+    let read = 0;
+    for (const row of Object.values(doc.page.controls)) {
+      for (const btn of Object.values(row)) {
+        const fields = [layer(btn, 'text0').text.value, layer(btn, 'text0').color.value, layer(btn, 'box0').color.value];
+        for (const f of fields) {
+          for (const [, ref] of f.matchAll(/\$\(sode:([^)]+)\)/g)) {
+            assert.ok(ref in defs, `${ref} is not defined`);
+            assert.ok(ref in values, `${ref} has no value`);
+            read++;
+          }
+        }
+      }
+    }
+    assert.equal(read, 45);
+  } finally {
+    rt.stop();
+    await fake.close();
+  }
 });
