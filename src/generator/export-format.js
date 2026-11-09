@@ -44,7 +44,7 @@ function layersOf({ text, bg, fg, pic, inset, bl, bt, br, bb }) {
     ...over,
   });
   return [
-    { ...LAYER('canvas', 'Canvas', 'canvas'), decoration: val('default'), showStatusIcons: val('default') },
+    { ...LAYER('canvas', 'Canvas', 'canvas'), decoration: val('none'), showStatusIcons: val('default') },
     // Border plate: the state colour over the whole key.
     box('box0', 'Background', { color: expression(bg) }),
     // Dark plate inside the Border, opaque only on keys with Artwork.
