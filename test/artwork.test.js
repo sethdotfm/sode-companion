@@ -213,12 +213,113 @@ test('Artwork that is too large or not an image leaves the key plain without an 
   assert.equal(rt.status().code, 'ok');
 });
 
-test('a merged Cell with Artwork stays plain', async () => {
-  const { host, fake } = await connect({ cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, rs: 1, cs: 2 }] });
-  await until(() => host.values.key_1_1 !== undefined, 'values');
-  assert.equal(pic(host, 1, 1), '');
-  assert.equal(pic(host, 1, 2), '');
-  assert.equal(artReads(fake).length, 0);
+const sides = (v, r, c) => ['l', 't', 'r', 'b'].map((s) => v[`key_${r}_${c}_b${s}`]);
+const alphaAt = (img, x, y) => img.at(x, y)[3];
+
+test('a merged Cell cuts its Artwork across its squares, which together show the whole picture', async () => {
+  const { host } = await connect({ cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, rs: 1, cs: 2 }] });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'both Key pictures');
+  const left = decodeKeyPicture(pic(host, 1, 1));
+  const right = decodeKeyPicture(pic(host, 1, 2));
+  // The group is 144 by 72 px with a 6 px Border band on its outer edges. The 200 by 100 picture fits the
+  // 132 by 60 inside as 120 by 60, at x 12 to 132 and y 6 to 66. Red is its left half and blue its right.
+  assert.deepEqual([left.width, left.height], [66, 60]);
+  assert.deepEqual([right.width, right.height], [66, 60]);
+  assert.equal(alphaAt(left, 2, 30), 0);
+  assert.equal(alphaAt(left, 6, 30), 255);
+  assert.ok(near(left.at(6, 30), RED));
+  assert.ok(near(left.at(65, 0), RED));
+  assert.ok(near(right.at(0, 59), BLUE));
+  assert.ok(near(right.at(59, 30), BLUE));
+  assert.equal(alphaAt(right, 62, 30), 0);
+});
+
+test('a merged Cell has the Border on the outer edges of the group only', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, rs: 2, cs: 2 }];
+  const { host } = await connect({ cells });
+  await until(() => pic(host, 2, 2), 'the Key pictures');
+  const v = host.values;
+  assert.deepEqual(sides(v, 1, 1), [8, 8, 0, 0]);
+  assert.deepEqual(sides(v, 1, 2), [0, 8, 8, 0]);
+  assert.deepEqual(sides(v, 2, 1), [8, 0, 0, 8]);
+  assert.deepEqual(sides(v, 2, 2), [0, 0, 8, 8]);
+  for (const [r, c] of [
+    [1, 1],
+    [1, 2],
+    [2, 1],
+    [2, 2],
+  ]) {
+    assert.equal(v[`key_${r}_${c}_inset`], 1);
+    assert.equal(v[`key_${r}_${c}_bg`], COLOURS.source);
+  }
+  assert.equal(v.key_1_1, 'CAM 1');
+  assert.equal(v.key_1_2, '');
+});
+
+test('pressing any square of a merged picture Cell presses the Cell', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'destination', n: 0, art: ART, rs: 1, cs: 2 }];
+  const { host, rt } = await connect({ cells });
+  await until(() => pic(host, 1, 2), 'the Key pictures');
+  await rt.press(1, 2);
+  await until(() => host.values.viewed === 'MON A', 'the destination viewed');
+});
+
+test('a merged SVG gets a narrower view box on each square, which together cover the picture', async () => {
+  const { host } = await connect({
+    cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, rs: 1, cs: 2 }],
+    artwork: { [ART]: svgOf(SVG) },
+  });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'both pictures');
+  const box = (c) =>
+    /viewBox="([^"]+)"/
+      .exec(svgBytes(pic(host, 1, c)))[1]
+      .split(' ')
+      .map(Number);
+  const [lx, ly, lw, lh] = box(1);
+  const [rx, ry, rw, rh] = box(2);
+  // A square 10 by 10 picture in the 132 by 60 inside is 60 px wide at x 42 to 102 of 144, so scale 6 px per unit.
+  assert.ok(Math.abs(lx - -6) < 0.01 && Math.abs(ly - 0) < 0.01, `left origin ${lx} ${ly}`);
+  assert.ok(Math.abs(lw - 11) < 0.01 && Math.abs(lh - 10) < 0.01, `left size ${lw} ${lh}`);
+  assert.ok(Math.abs(rx - 5) < 0.01 && Math.abs(ry - 0) < 0.01, `right origin ${rx} ${ry}`);
+  assert.ok(Math.abs(rw - 11) < 0.01 && Math.abs(rh - 10) < 0.01, `right size ${rw} ${rh}`);
+  assert.ok(svgBytes(pic(host, 1, 1)).includes('<rect width="10" height="10" fill="red"/>'));
+});
+
+test('a merged Icon spans its group with no Border and the Icon colour', async () => {
+  const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: 'icon:camera', rs: 1, cs: 2 }];
+  const { host } = await connect({ cells });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'both Icon pictures');
+  const v = host.values;
+  for (const c of [1, 2]) {
+    assert.equal(iconStroke(host, 1, c), hex(0xffffff));
+    assert.equal(v[`key_1_${c}_inset`], 0);
+    assert.deepEqual(sides(v, 1, c), [0, 0, 0, 0]);
+  }
+  const [lx, , lw] = /viewBox="([^"]+)"/
+    .exec(iconSvg(host, 1, 1))[1]
+    .split(' ')
+    .map(Number);
+  const [rx, , rw] = /viewBox="([^"]+)"/
+    .exec(iconSvg(host, 1, 2))[1]
+    .split(' ')
+    .map(Number);
+  // The 32 unit square Icon is centred in a 2 by 1 key group, so each square sees half of it plus padding.
+  assert.ok(Math.abs(lx + lw - rx) < 0.01, 'the squares abut');
+  assert.ok(Math.abs(lw - 32) < 0.01 && Math.abs(rw - 32) < 0.01);
+});
+
+test('a group cut by the grid edge shows its visible squares and no error', async () => {
+  const cells = [{ r: 3, c: 7, kind: 'source', n: 0, art: ART, rs: 2, cs: 3 }];
+  const { host, rt } = await connect({ cells, panelExtra: { rows: 5, cols: 10 } });
+  await until(() => pic(host, 4, 8), 'the visible squares');
+  assert.equal(rt.status().code, 'ok');
+  assert.equal(host.values.key_3_9_pic, undefined);
+  assert.equal(host.values.key_5_7_pic, undefined);
+  const v = host.values;
+  assert.deepEqual(sides(v, 3, 7), [8, 8, 0, 0]);
+  assert.deepEqual(sides(v, 4, 8), [0, 0, 0, 8]);
+  const tile = decodeKeyPicture(pic(host, 3, 7));
+  assert.ok(tile.width > 0 && tile.height > 0);
 });
 
 test('Offline drops every picture and brings them back with the router, without a second fetch', async () => {

@@ -29,14 +29,14 @@ function decode(bytes) {
   return null;
 }
 
-// Area-averaged scale into the middle of a size by size transparent square, so the whole picture fits and nothing is cropped.
-function fit({ width, height, data }, size) {
-  const scale = Math.min(size / width, size / height);
+// Area-averaged scale into the middle of a transparent canvas, so the whole picture fits and nothing is cropped.
+function fitRaw({ width, height, data }, cw, ch) {
+  const scale = Math.min(cw / width, ch / height);
   const w = Math.max(1, Math.round(width * scale));
   const h = Math.max(1, Math.round(height * scale));
-  const x0 = Math.floor((size - w) / 2);
-  const y0 = Math.floor((size - h) / 2);
-  const out = new PNG({ width: size, height: size });
+  const x0 = Math.floor((cw - w) / 2);
+  const y0 = Math.floor((ch - h) / 2);
+  const out = new PNG({ width: cw, height: ch });
   for (let y = 0; y < h; y++) {
     const sy0 = Math.floor((y * height) / h);
     const sy1 = Math.max(sy0 + 1, Math.floor(((y + 1) * height) / h));
@@ -58,11 +58,42 @@ function fit({ width, height, data }, size) {
           a += pa;
         }
       const n = (sy1 - sy0) * (sx1 - sx0);
-      const o = ((y0 + y) * size + x0 + x) * 4;
+      const o = ((y0 + y) * cw + x0 + x) * 4;
       if (a > 0) out.data.set([Math.round(r / a), Math.round(g / a), Math.round(b / a), Math.round(a / n)], o);
     }
   }
-  return PNG.sync.write(out);
+  return out;
+}
+
+const fit = (img, size) => PNG.sync.write(fitRaw(img, size, size));
+
+function crop(src, x0, y0, x1, y1) {
+  const out = new PNG({ width: x1 - x0, height: y1 - y0 });
+  for (let y = y0; y < y1; y++) src.data.copy(out.data, (y - y0) * out.width * 4, (y * src.width + x0) * 4, (y * src.width + x1) * 4);
+  return out;
+}
+
+const bandOf = (borderPercent) => Math.round((borderPercent / 100) * KEY_SIZE);
+
+// Each square of an rs by cs group as a rectangle in px, with the group drawn at KEY_SIZE per square. The Border band is cut
+// off the group's outer edges, so an edge square is that much smaller. Neighbouring rectangles abut exactly.
+function tilesOf({ rs, cs, border }) {
+  const band = bandOf(border);
+  const [gw, gh] = [cs * KEY_SIZE, rs * KEY_SIZE];
+  const rows = [];
+  for (let i = 0; i < rs; i++) {
+    const row = [];
+    for (let j = 0; j < cs; j++) {
+      row.push({
+        x0: Math.max(j * KEY_SIZE, band),
+        x1: Math.min((j + 1) * KEY_SIZE, gw - band),
+        y0: Math.max(i * KEY_SIZE, band),
+        y1: Math.min((i + 1) * KEY_SIZE, gh - band),
+      });
+    }
+    rows.push(row);
+  }
+  return { rows, band, inner: [gw - 2 * band, gh - 2 * band] };
 }
 
 // Sode sniffs SVG the same way: optional BOM, prolog, doctype and comments, then an svg root.
@@ -78,6 +109,62 @@ export function keyPicture(bytes, size = KEY_SIZE) {
     const img = decode(bytes);
     if (!img || img.width * img.height > MAX_PIXELS) return null;
     return fit(img, size).toString('base64');
+  } catch {
+    return null;
+  }
+}
+
+const attrOf = (name) => new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i');
+const ROOT_ATTRS = /\s(?:viewBox|width|height|preserveAspectRatio)\s*=\s*(?:"[^"]*"|'[^']*')/gi;
+
+// One data URL per square of the group, each with a root view box that shows only the part under that square. The picture fits
+// the group inside the Border band as it would on one key. Null when the root has neither a view box nor a size.
+export function cropSvg(text, geometry) {
+  const open = SVG_START.exec(text);
+  if (!open) return null;
+  // The match ends in "<svg" plus one more character.
+  const start = open[0].length - 5;
+  const end = text.indexOf('>', start);
+  if (end < 0) return null;
+  const root = text.slice(start, end);
+  const read = (name) => {
+    const m = attrOf(name).exec(root);
+    return m ? (m[1] ?? m[2]) : undefined;
+  };
+  let [vx, vy, vw, vh] = (read('viewBox') ?? '')
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (!(vw > 0 && vh > 0)) {
+    [vx, vy, vw, vh] = [0, 0, parseFloat(read('width')), parseFloat(read('height'))];
+    if (!(vw > 0 && vh > 0)) return null;
+  }
+  const { rows, band, inner } = tilesOf(geometry);
+  const s = Math.min(inner[0] / vw, inner[1] / vh);
+  const [ox, oy] = [band + (inner[0] - vw * s) / 2, band + (inner[1] - vh * s) / 2];
+  const bare = root.replace(ROOT_ATTRS, '');
+  return rows.map((row) =>
+    row.map((t) => {
+      const view = [vx + (t.x0 - ox) / s, vy + (t.y0 - oy) / s, (t.x1 - t.x0) / s, (t.y1 - t.y0) / s].map((n) => Number(n.toFixed(4)));
+      const tag = `${bare} viewBox="${view.join(' ')}" width="${t.x1 - t.x0}" height="${t.y1 - t.y0}"`;
+      return `data:image/svg+xml;base64,${Buffer.from(text.slice(0, start) + tag + text.slice(end)).toString('base64')}`;
+    }),
+  );
+}
+
+// The Key pictures of a merged Cell as rows of columns, or null when the bytes cannot be shown. geometry is
+// { rs, cs, border } with the Border in percent of a key. Rasters are cropped to each square; an SVG gets a narrower view box.
+export function keyPictures(bytes, geometry) {
+  if (bytes.length > MAX_BYTES) return null;
+  try {
+    if (isSvg(bytes)) return cropSvg(Buffer.from(bytes).toString('utf8'), geometry);
+    const img = decode(bytes);
+    if (!img || img.width * img.height > MAX_PIXELS) return null;
+    const { rows, band, inner } = tilesOf(geometry);
+    const fitted = fitRaw(img, inner[0], inner[1]);
+    return rows.map((row) =>
+      row.map((t) => PNG.sync.write(crop(fitted, t.x0 - band, t.y0 - band, t.x1 - band, t.y1 - band)).toString('base64')),
+    );
   } catch {
     return null;
   }
