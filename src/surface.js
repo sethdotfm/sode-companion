@@ -11,7 +11,7 @@ import {
   squareSideVariable,
 } from './visible.js';
 import { pulseLevel } from './timing.js';
-import { COLOURS, textOn, textFor } from './colours.js';
+import { COLOURS, textOn, textFor, WHITE } from './colours.js';
 
 export { COLOURS };
 
@@ -149,9 +149,11 @@ export function createSurface({ runtime, host, label }) {
       const style = styleOf(look);
       out[squareVariable(r, c)] ??= look.text;
       out[squareBgVariable(r, c)] = style.bgcolor;
-      out[squareFgVariable(r, c)] = style.color;
+      const inset = look.picture && look.border ? 1 : 0;
+      // The label sits on the dark inset plate, so it is light whatever the state colour; an Icon key keeps the solid fill.
+      out[squareFgVariable(r, c)] = inset ? WHITE : style.color;
       out[squarePictureVariable(r, c)] = look.picture ?? '';
-      out[squareInsetVariable(r, c)] = look.picture && look.border ? 1 : 0;
+      out[squareInsetVariable(r, c)] = inset;
       for (const side of SIDES) out[squareSideVariable(r, c, side)] = look.picture && (look.edges?.[side] ?? true) ? look.border : 0;
     }
     return out;

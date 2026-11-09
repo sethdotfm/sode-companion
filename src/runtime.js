@@ -10,7 +10,7 @@ import { createLivePanel } from './live-panel.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
 import { withPrefix } from './sode-key.js';
-import { keyPicture, keyPictures, cropSvg } from './artwork.js';
+import { keyPicture, keyPictures, cropSvg, svgDataUrl, MAX_BYTES } from './artwork.js';
 import { iconMarkup } from './icons.js';
 import { textFor, WHITE } from './colours.js';
 
@@ -63,7 +63,6 @@ const BORDER_PERCENT = 8;
 const iconSvg = (markup, rgb) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 32 32" fill="none" stroke="#${rgb.toString(16).padStart(6, '0')}" ` +
   `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
-const dataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
 
@@ -272,29 +271,32 @@ export function createRuntime({
   const iconOf = (cell) => iconMarkup(cell.art);
   const sizeOf = (cell) => ({ rs: cell.rs ?? 1, cs: cell.cs ?? 1 });
 
-  // The Key picture of the square at (r, c) of a Cell's group: the whole picture on one square, else that square's cut.
+  // The square at (r, c) of a Cell's group from cut(rs, cs), which gives rows of columns or null when the group cannot be cut.
+  const squareOf = (cell, r, c, cut) => {
+    const { rs, cs } = sizeOf(cell);
+    return cut(rs, cs)?.[r - cell.r]?.[c - cell.c];
+  };
   const artworkAt = (cell, r, c) => {
     const entry = pictures.get(artIdOf(cell));
     if (!entry) return undefined;
-    const { rs, cs } = sizeOf(cell);
-    if (rs === 1 && cs === 1) return entry.single;
-    const id = `${rs}x${cs}`;
-    if (!entry.groups.has(id)) entry.groups.set(id, keyPictures(entry.bytes, { rs, cs, border: BORDER_PERCENT }));
-    return entry.groups.get(id)?.[r - cell.r]?.[c - cell.c] ?? undefined;
+    return squareOf(cell, r, c, (rs, cs) => {
+      if (rs === 1 && cs === 1) return [[entry.single]];
+      const id = `${rs}x${cs}`;
+      if (!entry.groups.has(id)) entry.groups.set(id, keyPictures(entry.bytes, { rs, cs, border: BORDER_PERCENT }));
+      return entry.groups.get(id);
+    });
   };
   const iconAt = (cell, r, c, markup, rgb) => {
     const svg = iconSvg(markup, rgb);
-    const { rs, cs } = sizeOf(cell);
-    if (rs === 1 && cs === 1) return dataUrl(svg);
-    return cropSvg(svg, { rs, cs, border: 0 })?.[r - cell.r]?.[c - cell.c];
+    return squareOf(cell, r, c, (rs, cs) => (rs === 1 && cs === 1 ? [[svgDataUrl(svg)]] : cropSvg(svg, { rs, cs, border: 0 })));
   };
-  // The Border is drawn on a square's sides that lie on the group's outer edge.
   const edgesOf = (cell, r, c) => {
     const { rs, cs } = sizeOf(cell);
     return { bl: c === cell.c, bt: r === cell.r, br: c === cell.c + cs - 1, bb: r === cell.r + rs - 1 };
   };
-  // Sode hides text only under artwork, so a Cell never ends up with neither.
-  const textHidden = (cell) => cell.hideText === true && (ART_ID.test(cell.art) || iconMarkup(cell.art) !== undefined);
+  // Sode hides text only under art, so a Cell with no art string keeps its label. Any art string counts, valid or not, so a
+  // bad id or icon name does not bring the label back.
+  const textHidden = (cell) => cell.hideText === true && typeof cell.art === 'string' && cell.art !== '';
 
   // Fetches the Artwork the drawn Cells name, and drops pictures no Cell names any more.
   function syncArtwork(p) {
@@ -310,7 +312,8 @@ export function createRuntime({
       const path = `panels/${encodeURIComponent(panelId)}/artwork/${id}`;
       const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
       log(`GET ${path} ${res.status}`);
-      if (res.ok) {
+      // The header is checked before the body so an oversize file is never buffered.
+      if (res.ok && !(Number(res.headers.get('content-length')) > MAX_BYTES)) {
         const bytes = new Uint8Array(await res.arrayBuffer());
         const single = keyPicture(bytes);
         if (single) entry = { bytes, single, groups: new Map() };

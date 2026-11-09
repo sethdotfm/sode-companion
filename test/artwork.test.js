@@ -5,6 +5,8 @@ import { createSurface, COLOURS } from '../src/surface.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
 import { until } from './until.js';
 import { png, jpg, gif, decodeKeyPicture, RED, BLUE, GREEN } from './images.js';
+import { cropSvg, keyPicture, keyPictures, MAX_BYTES } from '../src/artwork.js';
+import { textFor, WHITE } from '../src/colours.js';
 
 const open = [];
 afterEach(async () => {
@@ -437,13 +439,13 @@ test('a hidden-text Icon Cell draws a white Icon and an empty label, whatever th
   assert.equal(iconStroke(host, 1, 2), hex(0xffffff));
 });
 
-test('an unknown icon name leaves the key plain', async () => {
+test('an unknown icon name leaves the key without a picture, and hidden text stays hidden', async () => {
   const cells = [{ r: 1, c: 1, kind: 'source', n: 0, art: 'icon:no-such-icon', hideText: true }];
   const { host, fake } = await connect({ cells });
   await until(() => host.values.key_1_1 !== undefined, 'values');
   assert.equal(pic(host, 1, 1), '');
   assert.equal(host.values.key_1_1_inset, 0);
-  assert.equal(host.values.key_1_1, 'CAM 1');
+  assert.equal(host.values.key_1_1, '');
   assert.equal(artReads(fake).length, 0);
 });
 
@@ -458,4 +460,155 @@ test('an Icon drops with Offline, and a Cell changed from Artwork to an Icon swa
   fake.status = { router: 'down', routerUp: false, error: true };
   await until(() => rt.status().code === 'offline', 'Offline');
   await until(() => pic(host, 1, 1) === '', 'the Icon dropped');
+});
+
+test('hidden text stays empty when the art string is malformed, but "Press again" still speaks', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'source', n: 0, art: 'a-zzz', hideText: true },
+    { r: 1, c: 2, kind: 'source', n: 1, art: 'icon:', hideText: true },
+    { r: 1, c: 3, kind: 'destination', n: 0 },
+    { r: 1, c: 4, kind: 'take', art: 'bogus', hideText: true },
+  ];
+  const { host, rt } = await connect({ cells, panelExtra: { settings: { guard: 'double' } } });
+  await until(() => host.values.key_1_1 !== undefined, 'values');
+  assert.equal(host.values.key_1_1, '');
+  assert.equal(host.values.key_1_2, '');
+  assert.equal(pic(host, 1, 1), '');
+  await rt.press(1, 3);
+  await rt.press(1, 2);
+  assert.equal(host.values.key_1_4, '');
+  await rt.press(1, 4);
+  await until(() => host.values.key_1_4 === 'Press\nagain', 'the confirm text');
+});
+
+// A runtime stub, so each state colour can be checked without driving a take to it.
+const stubValues = (look) => {
+  const values = {};
+  const runtime = {
+    grid: () => ({ rows: 1, cols: 1 }),
+    cells: () => [],
+    squares: () => [{ r: 1, c: 1 }],
+    variables: () => ({}),
+    look: () => look,
+    status: () => ({ code: 'ok', text: '' }),
+  };
+  const host = {
+    updateStatus() {},
+    setVariableDefinitions() {},
+    setPresetDefinitions() {},
+    setVariableValues: (v) => Object.assign(values, v),
+    checkFeedbacks() {},
+  };
+  createSurface({ runtime, host, label: 'sode' }).sync();
+  return values;
+};
+
+test('the label on an Artwork key is light over the dark inset in every state; an Icon or plain key keeps the state text colour', () => {
+  for (const colour of ['source', 'source-current', 'source-pending', 'take-armed', 'take-confirm', 'result-connected']) {
+    const edges = { bl: true, bt: true, br: true, bb: true };
+    const art = stubValues({ text: 'X', colour, pulse: 0, picture: 'p', border: 8, edges });
+    assert.equal(art.key_1_1_fg, WHITE, `Artwork on ${colour}`);
+    assert.equal(art.key_1_1_bg, COLOURS[colour], `Border on ${colour}`);
+    const icon = stubValues({ text: 'X', colour, pulse: 0, picture: 'data:image/svg+xml;base64,AA==', border: 0 });
+    assert.equal(icon.key_1_1_fg, textFor(colour), `Icon on ${colour}`);
+    const plain = stubValues({ text: 'X', colour, pulse: 0 });
+    assert.equal(plain.key_1_1_fg, textFor(colour), `no picture on ${colour}`);
+  }
+});
+
+test('Artwork whose Content-Length is over the cap is not read', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'source', n: 0, art: 'a-00000003' },
+    { r: 1, c: 2, kind: 'source', n: 1, art: ART },
+  ];
+  const big = { type: 'image/png', bytes: Buffer.concat([png(10, 10, () => RED), Buffer.alloc(MAX_BYTES)]) };
+  const bodiesRead = [];
+  const fetch = async (url, init) => {
+    const res = await globalThis.fetch(url, init);
+    if (!String(url).includes('/artwork/')) return res;
+    return {
+      ok: res.ok,
+      status: res.status,
+      headers: res.headers,
+      body: null,
+      arrayBuffer: () => {
+        bodiesRead.push(String(url));
+        return res.arrayBuffer();
+      },
+    };
+  };
+  const { host } = await connect({ cells, artwork: { 'a-00000003': big, [ART]: wide }, over: { fetch } });
+  await until(() => pic(host, 1, 2), 'the good picture');
+  assert.equal(pic(host, 1, 1), '');
+  assert.equal(bodiesRead.filter((u) => u.includes('a-00000003')).length, 0);
+});
+
+test('a PNG or GIF whose header dimensions are over the pixel cap is refused before decoding', () => {
+  const huge = png(5000, 5000, () => RED);
+  assert.ok(huge.length < MAX_BYTES, 'a small file with a large canvas');
+  const t = performance.now();
+  assert.equal(keyPicture(huge), null);
+  assert.equal(keyPictures(huge, { rs: 1, cs: 2, border: 8 }), null);
+  assert.ok(performance.now() - t < 100, 'refused from the header');
+  const bigGif = gif(10, 10, () => 0, RED, BLUE);
+  bigGif.writeUInt16LE(5000, 6);
+  bigGif.writeUInt16LE(5000, 8);
+  assert.equal(keyPicture(bigGif), null);
+  assert.notEqual(keyPicture(png(100, 100, () => RED)), null);
+});
+
+const urlText = (url) => Buffer.from(url.replace(/^data:image\/svg\+xml;base64,/, ''), 'base64').toString();
+const GROUP = { rs: 1, cs: 2, border: 8 };
+
+test('cropSvg uses the view box when width and height are percentages or missing', () => {
+  for (const attrs of ['width="100%" height="100%"', 'width="50%"', '']) {
+    const tiles = cropSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" ${attrs}><rect/></svg>`, GROUP);
+    assert.equal(tiles?.[0].length, 2, attrs);
+    assert.match(urlText(tiles[0][0]), /viewBox="-?[\d.]+ 0 11 10"/, attrs);
+  }
+});
+
+test('cropSvg returns null when there is no view box and no plain width and height', () => {
+  for (const attrs of ['width="100%" height="100%"', 'width="10" height="50%"', '', 'width="auto" height="auto"']) {
+    assert.equal(cropSvg(`<svg xmlns="http://www.w3.org/2000/svg" ${attrs}><rect/></svg>`, GROUP), null, attrs);
+  }
+  assert.ok(cropSvg('<svg width="10" height="20"><rect/></svg>', GROUP));
+  assert.ok(cropSvg('<svg width="10px" height="20px"><rect/></svg>', GROUP));
+});
+
+test('cropSvg keeps a self-closing root well formed', () => {
+  const tiles = cropSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>', GROUP);
+  const text = urlText(tiles[0][0]);
+  assert.match(text, /^<svg [^>]*viewBox="[^"]+" width="66" height="60"\/>$/);
+  assert.equal(text.match(/viewBox=/g).length, 1);
+});
+
+test('cropSvg reads a root whose attribute value contains ">"', () => {
+  const tiles = cropSvg('<svg viewBox="0 0 10 10" data-note="a > b" width="10" height="10"><rect/></svg>', GROUP);
+  const text = urlText(tiles[0][0]);
+  assert.match(text, /^<svg data-note="a > b" viewBox="[^"]+" width="66" height="60"><rect\/><\/svg>$/);
+});
+
+test('a merged SVG that cannot be cropped leaves its keys plain without an error', async () => {
+  const bytes = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><rect/></svg>');
+  const { host, rt, fake } = await connect({
+    cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART, rs: 1, cs: 2 }],
+    artwork: { [ART]: { type: 'image/svg+xml', bytes } },
+  });
+  await until(() => artReads(fake).length === 1 && host.values.key_1_1 !== undefined, 'the fetch');
+  assert.equal(pic(host, 1, 1), '');
+  assert.equal(host.values.key_1_1_inset, 0);
+  assert.equal(rt.status().code, 'ok');
+});
+
+test('a group cut by the grid edge has no Border on the cut sides', async () => {
+  // The Companion grid is 4 by 8, so this 2 by 3 group at row 4, column 7 shows a 1 by 2 corner of it.
+  const cells = [{ r: 4, c: 7, kind: 'source', n: 0, art: ART, rs: 2, cs: 3 }];
+  const { host, rt } = await connect({ cells, panelExtra: { rows: 6, cols: 10 } });
+  await until(() => pic(host, 4, 7) && pic(host, 4, 8), 'the visible squares');
+  assert.equal(rt.status().code, 'ok');
+  assert.equal(host.values.key_4_9_pic, undefined);
+  assert.equal(host.values.key_5_7_pic, undefined);
+  assert.deepEqual(sides(host.values, 4, 7), [8, 8, 0, 0]);
+  assert.deepEqual(sides(host.values, 4, 8), [0, 8, 0, 0]);
 });

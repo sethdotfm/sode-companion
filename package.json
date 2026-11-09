@@ -13,6 +13,7 @@
     "check": "companion-module-check",
     "build": "companion-module-build",
     "package": "companion-module-build",
+    "check-package": "sh scripts/check-package.sh",
     "sync-model": "sh scripts/sync-model.sh",
     "sync-icons": "sh scripts/sync-icons.sh",
     "link-dev": "sh scripts/link-dev.sh",

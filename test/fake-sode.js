@@ -112,7 +112,7 @@ export async function startFakeSode(opts = {}) {
     if (art && req.method === 'GET' && (art[1] === fake.panel?.id || art[1] === fake.panel?.slug)) {
       const file = fake.artwork[art[2]];
       if (!file) return apiError(res, 404, 'not_found');
-      res.writeHead(200, { 'Content-Type': file.type });
+      res.writeHead(200, { 'Content-Type': file.type, 'Content-Length': file.bytes.length });
       return res.end(file.bytes);
     }
     const m = /^\/api\/v1\/panels\/([^/]+)$/.exec(path);

@@ -45,7 +45,7 @@ The state colour drawn as a frame around the picture of a key square with Artwor
 _Avoid_: Outline, frame
 
 **Key picture**:
-The processed image shown on one key square, published as that square's picture variable. A merged Cell's picture is cut across its squares.
+The processed image shown on one key square, published as that square's picture variable. It comes from Artwork or from an Icon. A merged Cell's picture is cut across its squares.
 _Avoid_: Thumbnail, icon (that is an Icon)
 
 **Offline**:

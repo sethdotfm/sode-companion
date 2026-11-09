@@ -85,8 +85,7 @@ export function pressSource(st, cell, env, now) {
 export function pressPreset(st, cell, env, now) {
   const items = env.presets?.get(presetKey(cell.scope, cell.name));
   if (!items?.length) return fail(st, { code: 'no-preset', name: cell.name }, now);
-  if (!rightsAllow(env.rights, 'presets', cell.name))
-    return fail(st, { code: 'outside-rights', what: 'preset', name: cell.name, quiet: quiet(env) }, now);
+  if (!rightsAllow(env.rights, 'presets', cell.name)) return fail(st, { code: 'outside-rights', what: 'preset', name: cell.name, quiet: quiet(env) }, now);
   const dsts = new Set(items.flatMap((it) => it.dsts));
   if (!st.multi && dsts.size > 1) return fail(st, { code: 'preset-multi', name: cell.name }, now);
   const routes = [];
