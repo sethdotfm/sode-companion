@@ -65,9 +65,15 @@ function fit({ width, height, data }, size) {
   return PNG.sync.write(out);
 }
 
-// The Key picture as raw base64 of a PNG, or null when the bytes are too large, are not a supported raster or do not decode.
+// Sode sniffs SVG the same way: optional BOM, prolog, doctype and comments, then an svg root.
+const SVG_START = /^(?:\uFEFF)?\s*(?:<\?xml[^>]*\?>\s*|<!--[\s\S]*?-->\s*|<!DOCTYPE[^>]*>\s*)*<svg[\s>/]/i;
+const isSvg = (bytes) => SVG_START.test(Buffer.from(bytes.subarray(0, 2048)).toString('utf8'));
+
+// The Key picture, or null when the bytes are too large, are not a supported image or do not decode.
+// Rasters come back as raw base64 of a PNG. An SVG is passed on undecoded as a data URL for Companion to draw; the module never parses or runs it.
 export function keyPicture(bytes, size = KEY_SIZE) {
   if (bytes.length > MAX_BYTES) return null;
+  if (isSvg(bytes)) return `data:image/svg+xml;base64,${Buffer.from(bytes).toString('base64')}`;
   try {
     const img = decode(bytes);
     if (!img || img.width * img.height > MAX_PIXELS) return null;

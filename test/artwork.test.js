@@ -194,7 +194,7 @@ test('a failed fetch leaves the key plain and is tried again at the next panel c
   await until(() => pic(host, 1, 1), 'the picture after retry');
 });
 
-test('Artwork that is too large, an SVG or not an image leaves the key plain without an error', async () => {
+test('Artwork that is too large or not an image leaves the key plain without an error', async () => {
   const cells = [
     { r: 1, c: 1, kind: 'source', n: 0, art: 'a-00000001' },
     { r: 1, c: 2, kind: 'source', n: 1, art: 'a-00000002' },
@@ -202,7 +202,7 @@ test('Artwork that is too large, an SVG or not an image leaves the key plain wit
     { r: 1, c: 4, kind: 'source', n: 1, art: ART },
   ];
   const artwork = {
-    'a-00000001': { type: 'image/svg+xml', bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>') },
+    'a-00000001': { type: 'image/svg+xml', bytes: Buffer.from('<html><svg/></html>') },
     'a-00000002': { type: 'image/png', bytes: Buffer.from('not an image at all') },
     'a-00000003': { type: 'image/png', bytes: Buffer.concat([png(10, 10, () => RED), Buffer.alloc(1024 * 1024)]) },
     [ART]: wide,
@@ -232,4 +232,57 @@ test('Offline drops every picture and brings them back with the router, without 
   fake.status = { router: 'up', routerUp: true, error: false };
   await until(() => pic(host, 1, 1), 'the picture back');
   assert.equal(artReads(fake).length, 1);
+});
+
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="red"/></svg>';
+const svgOf = (text) => ({ type: 'image/svg+xml', bytes: Buffer.from(text) });
+// What Companion receives: a data URL it decodes itself.
+const svgBytes = (value) => {
+  const m = /^data:image\/svg\+xml;base64,(.+)$/.exec(value);
+  assert.ok(m, 'an SVG data URL');
+  return Buffer.from(m[1], 'base64').toString();
+};
+
+test('SVG Artwork reaches the key as the same bytes, not decoded', async () => {
+  const { host } = await connect({ cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART }], artwork: { [ART]: svgOf(SVG) } });
+  await until(() => pic(host, 1, 1), 'the Key picture');
+  assert.equal(svgBytes(pic(host, 1, 1)), SVG);
+});
+
+test('SVG with an XML prolog and a byte order mark is accepted', async () => {
+  const text = `\uFEFF<?xml version="1.0"?>\n<!-- logo -->\n${SVG}`;
+  const { host } = await connect({ cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART }], artwork: { [ART]: svgOf(text) } });
+  await until(() => pic(host, 1, 1), 'the Key picture');
+  assert.equal(svgBytes(pic(host, 1, 1)), text);
+});
+
+test('a script inside an SVG is passed on as text and never run', async () => {
+  globalThis.svgScriptRan = false;
+  const text = '<svg xmlns="http://www.w3.org/2000/svg"><script>globalThis.svgScriptRan = true</script></svg>';
+  const { host } = await connect({ cells: [{ r: 1, c: 1, kind: 'source', n: 0, art: ART }], artwork: { [ART]: svgOf(text) } });
+  await until(() => pic(host, 1, 1), 'the Key picture');
+  assert.equal(svgBytes(pic(host, 1, 1)), text);
+  assert.equal(globalThis.svgScriptRan, false);
+  delete globalThis.svgScriptRan;
+});
+
+test('SVG Artwork follows the same Border, inset and Offline rules as raster Artwork', async () => {
+  const cells = [
+    { r: 1, c: 1, kind: 'source', n: 0, art: ART },
+    { r: 1, c: 2, kind: 'source', n: 1, art: OTHER, hideText: true },
+  ];
+  const artwork = { [ART]: svgOf(SVG), [OTHER]: wide };
+  const { host, rt, fake } = await connect({ cells, artwork, over: { pollMs: 15 } });
+  await until(() => pic(host, 1, 1) && pic(host, 1, 2), 'both pictures');
+  const v = host.values;
+  for (const c of [1, 2]) {
+    assert.equal(v[`key_1_${c}_inset`], 1);
+    for (const side of ['l', 't', 'r', 'b']) assert.equal(v[`key_1_${c}_b${side}`], 8);
+    assert.equal(v[`key_1_${c}_bg`], COLOURS.source);
+  }
+  assert.equal(v.key_1_1, 'CAM 1');
+  assert.equal(v.key_1_2, '');
+  fake.status = { router: 'down', routerUp: false, error: true };
+  await until(() => rt.status().code === 'offline', 'Offline');
+  await until(() => pic(host, 1, 1) === '' && pic(host, 1, 2) === '', 'both dropped');
 });
