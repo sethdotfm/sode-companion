@@ -242,7 +242,8 @@ test('the generated YAML parses back to the same page and reads like the export'
 test('state colours are the dark patchbay accents of Sode panels', () => {
   assert.equal(COLOURS['source-current'], 0x5ccf8f);
   assert.equal(COLOURS['destination-view'], 0xe8673c);
-  assert.equal(COLOURS['take-armed'], 0xf2b84b);
+  assert.equal(COLOURS['take-armed'], 0xf0605a);
+  assert.equal(COLOURS['take-confirm'], 0xf2b84b);
   assert.equal(COLOURS['result-failed'], 0xf0605a);
 });
 

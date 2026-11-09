@@ -2,7 +2,7 @@
 // main.js is the only file that imports @companion-module/base.
 import { COMPANION_GRID, squareVariable, squareBgVariable, squareFgVariable } from './visible.js';
 import { pulseLevel } from './timing.js';
-import { COLOURS, textOn } from './colours.js';
+import { COLOURS, textOn, textFor } from './colours.js';
 
 export { COLOURS };
 
@@ -21,7 +21,7 @@ export function styleOf(look) {
   const bg = bgOf(look);
   const bgcolor = look.fill === undefined ? bg : blend(bg, COLOURS['take-armed'], look.fill);
   // Text colour follows the undimmed state colour so a pulse never flips it.
-  return { text: look.text, color: textOn(COLOURS[look.colour] ?? COLOURS.none), bgcolor };
+  return { text: look.text, color: textFor(look.colour), bgcolor };
 }
 
 const WHERE = [
