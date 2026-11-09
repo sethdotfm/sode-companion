@@ -19,7 +19,10 @@
     "generate": "node scripts/generate.js"
   },
   "dependencies": {
-    "@companion-module/base": "^2.2.2"
+    "@companion-module/base": "^2.2.2",
+    "jpeg-js": "^0.4.4",
+    "omggif": "^1.0.10",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@companion-module/tools": "^3.2.0",

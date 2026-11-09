@@ -46,6 +46,7 @@ const wsFrame = (text) => {
 // opts.panel, opts.names; opts.refuse = { status, code } answers every call with that error.
 // opts.stream = true serves GET /stream as a WebSocket. Off by default, so the upgrade answers 404 and the runtime polls.
 // fake.streamEnabled turns it off and on later; fake.push(t, data) sends a delta frame; fake.dropStream() closes every socket.
+// fake.artwork maps an art id to { type, bytes }; GET /panels/{id}/artwork/{art} serves it and an unknown id is 404.
 // fake.pushRaw(frame) sends any frame as is, for frames push() would not build.
 // fake.fail = { path, status, code } answers that one path with an error. fake.noStatusScope makes /status and the status topic 403 scope. fake.upgrades records each upgrade attempt.
 export async function startFakeSode(opts = {}) {
@@ -55,6 +56,7 @@ export async function startFakeSode(opts = {}) {
     refuse: opts.refuse || null,
     fail: null,
     requests: [],
+    artwork: opts.artwork || {},
     // keepalives: parsed bodies of POST /panels/{id}/instances. streams: one per held instances stream, end() drops it.
     keepalives: [],
     streams: [],
@@ -105,6 +107,13 @@ export async function startFakeSode(opts = {}) {
           json({ ok: true });
         });
       }
+    }
+    const art = /^\/api\/v1\/panels\/([^/]+)\/artwork\/([^/]+)$/.exec(path);
+    if (art && req.method === 'GET' && (art[1] === fake.panel?.id || art[1] === fake.panel?.slug)) {
+      const file = fake.artwork[art[2]];
+      if (!file) return apiError(res, 404, 'not_found');
+      res.writeHead(200, { 'Content-Type': file.type });
+      return res.end(file.bytes);
     }
     const m = /^\/api\/v1\/panels\/([^/]+)$/.exec(path);
     if (m && (m[1] === fake.panel?.id || m[1] === fake.panel?.slug)) return json(fake.panel);

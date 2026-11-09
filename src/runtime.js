@@ -10,6 +10,8 @@ import { createLivePanel } from './live-panel.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
 import { withPrefix } from './sode-key.js';
+import { keyPicture } from './artwork.js';
+import { iconMarkup } from './icons.js';
 
 // namesFrom has no label for a Take cell.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -52,6 +54,10 @@ const isRefusal = (e) => e.fail && e.fail !== 'unreachable';
 const scopeDenied = (e) => e.http === 403 && !isRefusal(e);
 
 const NO_PANEL = { rows: 0, cols: 0 };
+// Sode's pattern for an artwork id (web/panellook.js); any other art string is an icon or dropped.
+const ART_ID = /^a-[0-9a-f]{8}$/;
+// The Border is this share of the key on each side of an Artwork key.
+const BORDER_PERCENT = 8;
 const NONE = { text: '', colour: 'none', pulse: 0 };
 const BLANK = { text: '', colour: 'blank', pulse: 0 };
 
@@ -108,6 +114,9 @@ export function createRuntime({
   let pressed = null; // the Cell of the press in progress
   let seenError = null;
   const listeners = [];
+  // Key pictures by art id. Each id is fetched once; failed ids are retried when a newer panel applies.
+  const pictures = new Map();
+  const fetching = new Set();
   const changed = () => {
     if (state.error !== seenError) {
       seenError = state.error;
@@ -249,6 +258,38 @@ export function createRuntime({
     drawn = visibleSquares(p, grid)
       .filter((s) => s.root)
       .map((s) => s.cell);
+    syncArtwork(p);
+  }
+
+  // Only a Cell on one key square shows Artwork for now.
+  const artIdOf = (cell) =>
+    typeof cell.art === 'string' && ART_ID.test(cell.art) && (cell.rs ?? 1) === 1 && (cell.cs ?? 1) === 1 ? cell.art : '';
+  // Sode hides text only under artwork, so a Cell never ends up with neither.
+  const textHidden = (cell) => cell.hideText === true && (ART_ID.test(cell.art) || iconMarkup(cell.art) !== undefined);
+
+  // Fetches the Artwork the drawn Cells name, and drops pictures no Cell names any more.
+  function syncArtwork(p) {
+    const wanted = new Set(drawn.map(artIdOf).filter(Boolean));
+    for (const id of [...pictures.keys()]) if (!wanted.has(id)) pictures.delete(id);
+    for (const id of wanted) if (!pictures.has(id) && !fetching.has(id)) fetchArtwork(p.id, id);
+  }
+
+  async function fetchArtwork(panelId, id) {
+    fetching.add(id);
+    let picture = null;
+    try {
+      const path = `panels/${encodeURIComponent(panelId)}/artwork/${id}`;
+      const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
+      log(`GET ${path} ${res.status}`);
+      if (res.ok) picture = keyPicture(new Uint8Array(await res.arrayBuffer()));
+    } catch {
+      // Any failure leaves the key plain; the next applied panel tries again.
+    }
+    fetching.delete(id);
+    // A panel applied meanwhile may have dropped the id.
+    if (stopped || !picture || !drawn.some((cell) => artIdOf(cell) === id)) return;
+    pictures.set(id, picture);
+    changed();
   }
 
   function settle() {
@@ -512,7 +553,16 @@ export function createRuntime({
       const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
-      return { text: root ? text : '', colour, pulse: pulse ? timing.phase() : 0, ...(fill === undefined ? {} : { fill }) };
+      const picture = pictures.get(artIdOf(cell));
+      // A Result, refusal or "Press again" still speaks over hidden text.
+      const speaks = flashing || colour.startsWith('result-') || colour === 'take-confirm';
+      return {
+        text: root && (speaks || !textHidden(cell)) ? text : '',
+        colour,
+        pulse: pulse ? timing.phase() : 0,
+        ...(fill === undefined ? {} : { fill }),
+        ...(picture ? { picture, border: BORDER_PERCENT } : {}),
+      };
     },
   };
 
