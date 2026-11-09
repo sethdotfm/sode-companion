@@ -11,13 +11,15 @@
     "test": "node --test \"test/*.test.js\"",
     "sync-model": "sh scripts/sync-model.sh",
     "link-dev": "sh scripts/link-dev.sh",
-    "package": "companion-module-build"
+    "package": "companion-module-build",
+    "generate": "node scripts/generate.js"
   },
   "dependencies": {
     "@companion-module/base": "^2.2.2"
   },
   "devDependencies": {
-    "@companion-module/tools": "^3.2.0"
+    "@companion-module/tools": "^3.2.0",
+    "yaml": "^2.9.1"
   },
   "license": "MIT"
 }

@@ -2,31 +2,9 @@
 // main.js is the only file that imports @companion-module/base.
 import { squareVariable } from './visible.js';
 import { pulseLevel } from './timing.js';
+import { COLOURS, textOn } from './colours.js';
 
-export const WHITE = 0xffffff;
-
-// Muted idle colours per Cell kind, then the state classes the runtime's look() can return.
-export const COLOURS = {
-  source: 0x1f3a5f,
-  'source-current': 0x1f8f3f,
-  'source-pending': 0x1f8f3f,
-  destination: 0x5f3a1f,
-  'destination-view': 0xb86a1f,
-  'destination-staged': 0xe08a1f,
-  take: 0x7a1f1f,
-  'take-armed': 0xd02a2a,
-  preset: 0x3a1f5f,
-  'preset-pending': 0x7a3fd0,
-  unavailable: 0x222222,
-  clear: 0x444444,
-  current: 0x1f5f5f,
-  'result-connected': 0x1f8f3f,
-  'result-already': 0x1f5f8f,
-  'result-failed': 0xd02a2a,
-  error: 0xd02a2a,
-  offline: 0x2b2b2b,
-  none: 0x000000,
-};
+export { COLOURS };
 
 const channels = (fn) => [16, 8, 0].reduce((out, shift) => out | (fn(shift) << shift), 0);
 const scale = (rgb, f) => channels((sh) => Math.round(((rgb >> sh) & 255) * f));
@@ -41,7 +19,9 @@ const bgOf = ({ colour, pulse }) => {
 // A hold's fill is shown as the Take colour shifting to its armed colour; Companion has no partial fill for a button.
 export function styleOf(look) {
   const bg = bgOf(look);
-  return { text: look.text, color: WHITE, bgcolor: look.fill === undefined ? bg : blend(bg, COLOURS['take-armed'], look.fill) };
+  const bgcolor = look.fill === undefined ? bg : blend(bg, COLOURS['take-armed'], look.fill);
+  // Text colour follows the undimmed state colour so a pulse never flips it.
+  return { text: look.text, color: textOn(COLOURS[look.colour] ?? COLOURS.none), bgcolor };
 }
 
 const WHERE = [
@@ -110,7 +90,7 @@ const presetsOf = (cells, label) => {
     presets[`cell_${cell.r}_${cell.c}`] = {
       type: 'simple',
       name: `Row ${cell.r} column ${cell.c}: ${cell.kind}`,
-      style: { text: `$(${label}:${squareVariable(cell.r, cell.c)})`, size: 'auto', color: WHITE, bgcolor: COLOURS[cell.kind] ?? COLOURS.none },
+      style: { text: `$(${label}:${squareVariable(cell.r, cell.c)})`, size: 'auto', color: textOn(COLOURS[cell.kind] ?? COLOURS.none), bgcolor: COLOURS[cell.kind] ?? COLOURS.none },
       steps: [{ down: [{ actionId: 'press', options: { ...where, event: 'down' } }], up: [{ actionId: 'press', options: { ...where, event: 'up' } }] }],
       feedbacks: [{ feedbackId: 'look', options: where }],
     };
