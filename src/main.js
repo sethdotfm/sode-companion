@@ -5,12 +5,44 @@ import { instanceStatusOf } from './companion-status.js';
 
 const WHITE = 0xffffff;
 // Muted idle colours per Cell kind. Source, Destination and press states come with the takes work.
-const COLOURS = { source: 0x1f3a5f, destination: 0x5f3a1f, take: 0x7a1f1f, preset: 0x3a1f5f, clear: 0x444444, current: 0x1f5f5f, none: 0x000000 };
+// Pulse phases come with their own slice; a pulsing look shows its solid colour for now.
+const COLOURS = {
+  source: 0x1f3a5f,
+  'source-current': 0x1f8f3f,
+  'source-pending': 0x1f8f3f,
+  destination: 0x5f3a1f,
+  'destination-view': 0xb86a1f,
+  'destination-staged': 0xe08a1f,
+  take: 0x7a1f1f,
+  'take-armed': 0xd02a2a,
+  preset: 0x3a1f5f,
+  clear: 0x444444,
+  current: 0x1f5f5f,
+  none: 0x000000,
+};
 
 class SodePanelsInstance extends InstanceBase {
   runtime = null;
 
   async init(config, _isFirstInit, secrets) {
+    this.setVariableDefinitions({
+      viewed: { name: 'Viewed destination' },
+      current: { name: 'Current source of the viewed destination' },
+      staged: { name: 'Staged route count' },
+      error: { name: 'Last error' },
+    });
+    this.setActionDefinitions({
+      press: {
+        name: 'Press a panel key square',
+        options: [
+          { id: 'row', type: 'number', label: 'Row', default: 1, min: 1, max: 99 },
+          { id: 'col', type: 'number', label: 'Column', default: 1, min: 1, max: 99 },
+        ],
+        callback: async ({ options }) => {
+          await this.runtime?.press(options.row, options.col);
+        },
+      },
+    });
     this.setFeedbackDefinitions({
       look: {
         type: 'advanced',
@@ -68,6 +100,7 @@ class SodePanelsInstance extends InstanceBase {
       const { code, text } = runtime.status();
       this.updateStatus(instanceStatusOf(code) ?? InstanceStatus.UnknownError, text);
       if (code === 'ok') this.#presets();
+      this.setVariableValues(runtime.variables());
       this.checkFeedbacks('look');
     });
     runtime.start();
@@ -84,7 +117,7 @@ class SodePanelsInstance extends InstanceBase {
         type: 'simple',
         name: `Row ${cell.r} column ${cell.c}: ${text}`,
         style: { text, size: 'auto', color: WHITE, bgcolor: COLOURS[colour] },
-        steps: [{ down: [], up: [] }],
+        steps: [{ down: [{ actionId: 'press', options: { row: cell.r, col: cell.c } }], up: [] }],
         feedbacks: [{ feedbackId: 'look', options: { row: cell.r, col: cell.c } }],
       };
     }
