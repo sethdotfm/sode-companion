@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { generatePage } from '../src/generator/index.js';
+import { actionDefinitions, feedbackDefinitions } from '../src/surface.js';
 
 const panelOf = (cells, over = {}) => ({ id: 'p-1', name: 'Speedtest', slug: 'speedtest', acts: 'api', rows: 3, cols: 5, cells, rev: 1, ...over });
 const controlAt = (page, r, c) => page.controls?.[r]?.[c];
@@ -105,4 +106,18 @@ test('the core imports nothing that needs Node', () => {
   };
   walk(new URL('../src/generator/index.js', import.meta.url));
   assert.ok(seen.size >= 4);
+});
+
+test('generated buttons use the one press action and the look feedback the module defines', () => {
+  const actions = actionDefinitions(() => null);
+  const feedbacks = feedbackDefinitions(() => null);
+  const choices = actions.press.options.find((o) => o.id === 'event').choices.map((x) => x.id);
+  const btn = controlAt(generatePage(panelOf([{ r: 1, c: 1, kind: 'source', n: 0 }]), 'c'), 1, 1);
+  const { down, up } = btn.steps[0].action_sets;
+  for (const ref of [...down, ...up]) {
+    assert.ok(ref.definitionId in actions);
+    assert.ok(choices.includes(ref.options.event));
+  }
+  assert.deepEqual([down[0].options.event, up[0].options.event], ['down', 'up']);
+  assert.ok(btn.feedbacks[0].definitionId in feedbacks);
 });

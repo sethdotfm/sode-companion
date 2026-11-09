@@ -177,3 +177,13 @@ test('an unreachable Sode is reported, and the runtime recovers when it answers'
   });
   assert.equal(rt.look(1, 1).text, 'CAM 1');
 });
+
+test('a key pasted without the sode_ prefix is sent with it, and a full key is not doubled', async () => {
+  for (const key of [KEY.slice(5), KEY]) {
+    const fake = await startFakeSode({ panel: panelOf([{ r: 1, c: 1, kind: 'source', n: 0 }]) });
+    const { rt } = await connect(fake, { key });
+    assert.equal(rt.status().code, 'ok');
+    assert.ok(fake.requests.length > 0);
+    assert.ok(fake.requests.every((q) => q.auth === `Bearer ${KEY}`));
+  }
+});

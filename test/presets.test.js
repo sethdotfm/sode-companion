@@ -2,6 +2,7 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
+import { until } from './until.js';
 
 const open = [];
 afterEach(async () => {
@@ -176,8 +177,7 @@ test('a hold guard fires after 0.8 seconds held and shows its fill meanwhile', a
   clock.t += 400;
   assert.equal(look(rt, TAKE).fill, 0.5);
   clock.t += 400;
-  await wait(900);
-  assert.equal(fake.takes.length, 1);
+  await until(() => fake.takes.length === 1, 'the held take');
   assert.equal(look(rt, TAKE).fill, undefined);
 });
 
@@ -192,5 +192,21 @@ test('releasing a hold early cancels it', async () => {
   clock.t += 600;
   await wait(900);
   assert.equal(fake.takes.length, 0);
+  assert.equal(rt.variables().staged, 1);
+});
+
+test('a hold that comes due while Offline sends nothing', async () => {
+  const { rt, fake, clock } = await connect({ settings: { guard: 'hold' } });
+  await press(rt, DST_A);
+  await press(rt, SRC2);
+  await press(rt, TAKE);
+  fake.status = { router: 'down', routerUp: false, error: true };
+  await until(() => rt.status().code === 'offline', 'Offline');
+  clock.t += 900;
+  await wait(900);
+  fake.status = { router: 'up', routerUp: true, error: false };
+  await until(() => rt.status().code === 'ok', 'recovery');
+  assert.equal(fake.takes.length, 0);
+  assert.equal(look(rt, TAKE).fill, undefined, 'the hold had run its course');
   assert.equal(rt.variables().staged, 1);
 });

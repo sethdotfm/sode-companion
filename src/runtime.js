@@ -4,12 +4,12 @@ import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
 import { createHold } from './hold.js';
 import { deviceName, startInstance } from './instance.js';
-import { COMPANION_GRID, visibleSquares } from './visible.js';
+import { COMPANION_GRID, visibleSquares, squareVariable } from './visible.js';
 import { createLivePanel } from './live-panel.js';
 import { createTiming } from './timing.js';
 import { flashWord } from './flash.js';
 
-// namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
+// namesFrom has no label for a Take cell.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
 
 // Fixed wording only: Sode's own error text is never shown, and no message holds the key.
@@ -39,19 +39,32 @@ class Refused extends Error {
   }
 }
 
+// A 403 that is not one of the named refusals is a missing scope, not a refused key.
+const isRefusal = (e) => e.fail && e.fail !== 'unreachable';
+const scopeDenied = (e) => e.http === 403 && !isRefusal(e);
+
 const NO_PANEL = { rows: 0, cols: 0 };
 const NONE = { text: '', colour: 'none', pulse: 0 };
 
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, timers = { setTimeout, clearTimeout }, log = () => {} }) {
+// Links show the secret without Sode's prefix.
+const withPrefix = (raw) => {
+  const key = String(raw || '').trim();
+  return key && !key.startsWith('sode_') ? `sode_${key}` : key;
+};
+
+export function createRuntime({ host, port, tls = false, panel: panelRef, key: rawKey, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, timers = { setTimeout, clearTimeout }, log = () => {} }) {
+  const key = withPrefix(rawKey);
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
   let names = namesFrom({});
+  let squares = [];
   let drawn = [];
   let stopped = false;
+  let halted = false; // a refused key ends every timer, and nothing may re-arm one
   let timer = 0;
   let stopInstance = null;
   const name = deviceName(device, label);
@@ -59,7 +72,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
   let liveTimer = 0;
   let live = null;
   let polls = 0;
-  let st = model.createState();
+  let state = model.createState();
   let env = envFrom({}, {});
   let tallyRaw = {};
   // true or false from the status read, null when the key has no status scope: the link is unknown, not down.
@@ -73,22 +86,26 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
   let seenError = null;
   const listeners = [];
   const changed = () => {
-    if (st.error !== seenError) {
-      seenError = st.error;
-      if (st.error && pressed) flash = { cell: pressed, at: st.error.at };
+    if (state.error !== seenError) {
+      seenError = state.error;
+      if (state.error && pressed) flash = { cell: pressed, at: state.error.at };
     }
     timing.sync();
     listeners.forEach((fn) => fn());
   };
-  const timing = createTiming({ timers, now, read: () => st, write: (next) => (st = next), notify: changed });
+  const timing = createTiming({ timers, now, read: () => state, write: (next) => (state = next), notify: changed });
 
   const set = (code, text = FAILS[code]) => {
     status = { code, text };
     changed();
   };
 
-  // Settings the panel does not grant (scope 403) read as empty rather than failing the panel.
-  const soft = (path) => get(path).catch(() => ({}));
+  // A scope 403 reads as empty rather than failing the panel. Any other failure throws, so the last good read stands.
+  const soft = (path) =>
+    get(path).catch((e) => {
+      if (scopeDenied(e)) return {};
+      throw e;
+    });
 
   // Protected and presets are read only when slow is set; the last read stands between.
   let slowReads = [{}, {}];
@@ -97,7 +114,11 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
   const readPresets = () =>
     get('presets').then(
       (r) => ((presetsOpen = true), r),
-      (e) => ((presetsOpen = e.http !== 403), {}),
+      (e) => {
+        if (!scopeDenied(e)) throw e;
+        presetsOpen = false;
+        return {};
+      },
     );
   async function readRouter(slow, withTally = true) {
     if (withTally) tallyRaw = await get('tally');
@@ -107,7 +128,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
 
   function rebuildEnv() {
     env = envFrom(tallyRaw, slowReads[0], slowReads[1], panel.rights);
-    st = model.applyTally(st, env);
+    state = model.applyTally(state, env);
   }
 
   async function readStatus() {
@@ -130,7 +151,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
 
   // While the stream is up only the slow reads are polled; down, tally and status are polled every pollMs.
   async function poll() {
-    if (stopped) return;
+    if (stopped || halted) return;
     try {
       const slow = ++polls % SLOW_EVERY === 0;
       if (streamUp) await readRouter(slow, false);
@@ -143,15 +164,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       changed();
     } catch (e) {
       // A refusal ends all attempts; anything else is a lost Sode.
-      if (e.fail && e.fail !== 'unreachable') return refuse(e.fail);
+      if (isRefusal(e)) return refuse(e.fail);
       log(`poll failed: ${e.fail || 'error'}`);
       sodeLost = true;
       syncOffline();
     }
-    if (!stopped && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
+    if (!stopped && !halted && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
   }
 
   function refuse(code) {
+    halted = true;
     clearTimeout(pollTimer);
     clearTimeout(liveTimer);
     stream?.close();
@@ -171,28 +193,31 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     changed();
   }
 
-  // Only Cells with a Root square inside the Companion grid are kept; the rest are ignored without an error.
-  const drawnOf = (p) => visibleSquares(p, grid).filter((s) => s.root).map((s) => s.cell);
+  // A Cell whose Root square is off the Companion grid is not drawn.
+  function useGrid(p) {
+    squares = visibleSquares(p, grid);
+    drawn = squares.filter((s) => s.root).map((s) => s.cell);
+  }
 
-  // Applies a newer panel copy once the rules allow. The viewed destination is carried over.
   function settle() {
-    const fresh = live?.due({ busy: st.busy, viewed: !!st.view, staged: st.staged.length > 0 }, now());
+    const fresh = live?.due({ busy: state.busy, viewed: !!state.view, staged: state.staged.length > 0 }, now());
     if (!fresh) return;
     panel = fresh;
-    drawn = drawnOf(fresh);
-    st = model.carryView(model.createState(fresh.settings), st, drawn);
+    useGrid(fresh);
+    state = model.createState(fresh.settings);
     changed();
   }
 
   async function checkPanel() {
-    if (stopped) return;
+    if (stopped || halted) return;
     try {
       live.notice(await get(`panels/${encodeURIComponent(panelRef)}`), now());
-    } catch {
-      // A failed read leaves the panel as it is; the next check tries again.
+    } catch (e) {
+      // Any other failure leaves the panel as it is; the next check tries again.
+      if (isRefusal(e)) return refuse(e.fail);
     }
     settle();
-    if (!stopped) liveTimer = setTimeout(checkPanel, liveMs);
+    if (!stopped && !halted) liveTimer = setTimeout(checkPanel, liveMs);
   }
 
   const get = async (path) => {
@@ -200,7 +225,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     log(`GET ${path} ${res.status}`);
     const body = await res.json().catch(() => ({}));
     if (res.ok) return body;
-    const code = REFUSALS[body?.error?.code] || (res.status === 404 ? 'panel-not-found' : 'unreachable');
+    const code = REFUSALS[body?.error?.code] || (res.status === 401 ? 'key-refused' : res.status === 404 ? 'panel-not-found' : 'unreachable');
     throw new Refused(code, res.status, body?.error?.code);
   };
 
@@ -209,13 +234,13 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     try {
       const p = await get(`panels/${encodeURIComponent(panelRef)}`);
       if (p.acts !== 'api') throw new Refused('session-mode');
-      const nm = await get('names');
+      const fetchedNames = await get('names');
       if (stopped) return;
       panel = p;
-      names = namesFrom(nm);
-      drawn = drawnOf(p);
+      names = namesFrom(fetchedNames);
+      useGrid(p);
       live = createLivePanel(p.rev);
-      st = model.createState(p.settings);
+      state = model.createState(p.settings);
       await readRouter(true);
       await readStatus();
       if (stopped) return;
@@ -257,30 +282,30 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     const t = now();
     switch (cell.kind) {
       case 'source': {
-        const s = model.sourceState(st, cell.n, env);
+        const s = model.sourceState(state, cell.n, env);
         return { text, colour: s === 'idle' ? 'source' : `source-${s}`, pulse: s === 'pending' ? 1 : 0 };
       }
       case 'destination': {
-        const shown = model.resultShown(st, cell.n, now());
+        const shown = model.resultShown(state, cell.n, now());
         if (shown) return { text: `${text}\n${shown.word}`, colour: `result-${shown.result}`, pulse: 0 };
-        const s = model.destinationState(st, cell.n);
-        if (s === 'staged') return { text: `${text}\n${names.source(st.staged.find((x) => x.dst === cell.n).src)}`, colour: 'destination-staged', pulse: 1 };
+        const s = model.destinationState(state, cell.n);
+        if (s === 'staged') return { text: `${text}\n${names.source(state.staged.find((x) => x.dst === cell.n).src)}`, colour: 'destination-staged', pulse: 1 };
         return { text, colour: s === 'idle' ? 'destination' : `destination-${s}`, pulse: 0 };
       }
       case 'take': {
-        const armed = model.armed(st, env);
+        const armed = model.armed(state, env);
         const look = { text, colour: armed ? 'take-armed' : 'take', pulse: armed ? 1 : 0 };
-        return st.holdAt ? { ...look, fill: Math.min(1, (now() - st.holdAt) / model.GUARD_HOLD_MS) } : look;
+        return state.holdAt ? { ...look, fill: Math.min(1, (now() - state.holdAt) / model.GUARD_HOLD_MS) } : look;
       }
       case 'preset': {
         if (!presetsOpen) return { text: 'Unavailable', colour: 'unavailable', pulse: 0 };
-        const pending = model.presetState(st, cell, env) === 'pending';
+        const pending = model.presetState(state, cell, env) === 'pending';
         return { text, colour: pending ? 'preset-pending' : 'preset', pulse: pending ? 1 : 0 };
       }
       case 'current': {
-        if (!st.view) return { text: cell.caption || 'Currently', colour: 'current', pulse: 0 };
-        const cur = model.currentSource(env, st);
-        return { text: `${currentLabel(cell, names.destination(st.view.dst))}\n${cur >= 0 ? names.source(cur) : 'None'}`, colour: 'current', pulse: 0 };
+        if (!state.view) return { text: cell.caption || 'Currently', colour: 'current', pulse: 0 };
+        const cur = model.currentSource(env, state);
+        return { text: `${currentLabel(cell, names.destination(state.view.dst))}\n${cur >= 0 ? names.source(cur) : 'None'}`, colour: 'current', pulse: 0 };
       }
       default:
         return { text, colour: cell.kind, pulse: 0 };
@@ -289,9 +314,9 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
 
   const cellAt = (r, c) => r <= grid.rows && c <= grid.cols && drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
 
-  async function sendTake(started = model.startTake(st, env, now())) {
-    if (!started) return;
-    st = started.state;
+  async function sendTake(started = model.startTake(state, env, now())) {
+    if (!started || status.code !== 'ok') return;
+    state = started.state;
     changed();
     try {
       const res = await doFetch(`${base}/takes`, {
@@ -301,32 +326,33 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       });
       log(`POST takes ${res.status}`);
       const body = await res.json().catch(() => ({}));
-      st = res.ok ? model.finishTake(st, body, now()) : model.failTake(st, body?.error?.code || 'refused', body?.error?.message || '', now());
+      state = res.ok ? model.finishTake(state, body, now()) : model.failTake(state, body?.error?.code || 'refused', body?.error?.message || '', now());
     } catch {
-      st = model.failTake(st, 'unreachable', 'Sode did not answer the take', now());
+      state = model.failTake(state, 'unreachable', 'Sode did not answer the take', now());
     }
-    st = { ...st, touchedAt: now() };
+    state = { ...state, touchedAt: now() };
     changed();
-    if (!stopped) poll1();
+    if (!stopped) refreshTally();
+    settle();
   }
 
   // One extra tally read after a take, so the keys show what the router did without waiting for the next tick.
-  const poll1 = () => readRouter(false).then(changed, () => {});
+  const refreshTally = () => readRouter(false).then(changed, () => {});
 
   const hold = createHold({
     ms: model.GUARD_HOLD_MS,
     tick: () => changed(),
     async due() {
       hold.stop();
-      const g = model.guardHeld(st, now());
-      st = g.state;
+      const guard = model.guardHeld(state, now());
+      state = guard.state;
       changed();
-      if (g.go) await sendTake();
+      if (guard.go) await sendTake();
     },
   });
 
   // Instant mode: the press that staged something is the Confirm. A refused press leaves an older failed route staged, so it must not resend.
-  const confirmInstant = () => (st.error ? undefined : sendTake(model.startInstant(st, env, now())));
+  const confirmInstant = () => (state.error ? undefined : sendTake(model.startInstant(state, env, now())));
 
   const api = {
     async start() {
@@ -346,67 +372,71 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       clearTimeout(liveTimer);
     },
     release() {
-      if (!st.holdAt) return;
+      if (!state.holdAt) return;
       hold.stop();
-      st = model.guardCancel(st);
+      state = model.guardCancel(state);
       changed();
     },
     async press(r, c) {
       const cell = cellAt(r, c);
       if (!cell || status.code !== 'ok') return;
-      const before = st;
+      const before = state;
       switch (cell.kind) {
         case 'destination':
-          st = model.pressDestination(st, cell, env, now());
+          state = model.pressDestination(state, cell, env, now());
           break;
         case 'source':
-          st = model.pressSource(st, cell, env, now());
+          state = model.pressSource(state, cell, env, now());
           changed();
           return confirmInstant();
         case 'preset':
           if (!presetsOpen) return;
-          st = model.pressPreset(st, cell, env, now());
+          state = model.pressPreset(state, cell, env, now());
           changed();
           return confirmInstant();
         case 'clear':
-          st = model.pressClear(st, now());
+          state = model.pressClear(state, now());
           hold.stop();
           break;
         case 'take': {
           // An unarmed press must not start a guard that a later arming would complete.
-          if (!model.armed(st, env)) return;
-          const g = model.guardDown(st, now());
-          st = g.state;
-          if (g.go) await sendTake();
-          else if (st.holdAt) hold.start();
+          if (!model.armed(state, env)) return;
+          const guard = model.guardDown(state, now());
+          state = guard.state;
+          if (guard.go) await sendTake();
+          else if (state.holdAt) hold.start();
           break;
         }
         default:
           return;
       }
-      if (st !== before) changed();
+      if (state !== before) changed();
       settle();
     },
     variables() {
-      const view = st.view;
-      const cur = model.currentSource(env, st);
-      return {
+      const view = state.view;
+      const cur = model.currentSource(env, state);
+      const out = {
         viewed: view ? names.destination(view.dst) : '',
         current: cur >= 0 ? names.source(cur) : '',
-        staged: st.staged.length,
-        error: errorText(model.errorOf(st, now()), names),
+        staged: state.staged.length,
+        error: errorText(model.errorOf(state, now()), names),
+        router: routerUp === null ? 'unknown' : routerUp ? 'up' : 'down',
       };
+      for (const sq of squares) out[squareVariable(sq.r, sq.c)] = api.look(sq.r, sq.c).text;
+      return out;
     },
     onChange: (fn) => listeners.push(fn),
     status: () => status,
     grid: () => ({ rows: panel.rows, cols: panel.cols }),
     cells: () => drawn,
+    squares: () => squares,
     look(r, c) {
       const cell = cellAt(r, c);
       if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
       if (status.code === 'offline') return { text: root ? 'Offline' : '', colour: 'offline', pulse: 0 };
-      const err = model.errorOf(st, now());
+      const err = model.errorOf(state, now());
       const flashing = err && flash?.cell === cell && flash.at === err.at;
       const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
       return { text: root ? text : '', colour, pulse: pulse ? timing.phase() : 0, ...(fill === undefined ? {} : { fill }) };

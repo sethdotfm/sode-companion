@@ -1,0 +1,151 @@
+// The Companion shell's logic without Companion's classes, so tests can drive it with a fake host.
+// main.js is the only file that imports @companion-module/base.
+import { squareVariable } from './visible.js';
+import { pulseLevel } from './timing.js';
+
+export const WHITE = 0xffffff;
+
+// Muted idle colours per Cell kind, then the state classes the runtime's look() can return.
+export const COLOURS = {
+  source: 0x1f3a5f,
+  'source-current': 0x1f8f3f,
+  'source-pending': 0x1f8f3f,
+  destination: 0x5f3a1f,
+  'destination-view': 0xb86a1f,
+  'destination-staged': 0xe08a1f,
+  take: 0x7a1f1f,
+  'take-armed': 0xd02a2a,
+  preset: 0x3a1f5f,
+  'preset-pending': 0x7a3fd0,
+  unavailable: 0x222222,
+  clear: 0x444444,
+  current: 0x1f5f5f,
+  'result-connected': 0x1f8f3f,
+  'result-already': 0x1f5f8f,
+  'result-failed': 0xd02a2a,
+  error: 0xd02a2a,
+  offline: 0x2b2b2b,
+  none: 0x000000,
+};
+
+const channels = (fn) => [16, 8, 0].reduce((out, shift) => out | (fn(shift) << shift), 0);
+const scale = (rgb, f) => channels((sh) => Math.round(((rgb >> sh) & 255) * f));
+const blend = (a, b, t) => channels((sh) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t));
+
+// A pulse phase dims the state colour; 0 is steady.
+const bgOf = ({ colour, pulse }) => {
+  const rgb = COLOURS[colour] ?? COLOURS.none;
+  return pulse ? scale(rgb, pulseLevel(pulse)) : rgb;
+};
+
+// A hold's fill is shown as the Take colour shifting to its armed colour; Companion has no partial fill for a button.
+export function styleOf(look) {
+  const bg = bgOf(look);
+  return { text: look.text, color: WHITE, bgcolor: look.fill === undefined ? bg : blend(bg, COLOURS['take-armed'], look.fill) };
+}
+
+const WHERE = [
+  { id: 'row', type: 'number', label: 'Row', default: 1, min: 1, max: 99 },
+  { id: 'col', type: 'number', label: 'Column', default: 1, min: 1, max: 99 },
+];
+
+// runtimeOf returns the live runtime, which a reconfigure replaces.
+export const actionDefinitions = (runtimeOf) => ({
+  press: {
+    name: 'Press a panel key square',
+    options: [
+      ...WHERE,
+      {
+        id: 'event',
+        type: 'dropdown',
+        label: 'Event',
+        default: 'down',
+        choices: [
+          { id: 'down', label: 'Down' },
+          { id: 'up', label: 'Up' },
+        ],
+      },
+    ],
+    callback: async ({ options }) => {
+      const runtime = runtimeOf();
+      if (options.event === 'up') runtime?.release(options.row, options.col);
+      else await runtime?.press(options.row, options.col);
+    },
+  },
+});
+
+export const feedbackDefinitions = (runtimeOf) => ({
+  look: {
+    type: 'advanced',
+    name: 'Look of a panel key square',
+    description: 'Text and colour of the Cell at this row and column of the panel.',
+    options: WHERE,
+    affectedProperties: ['text', 'color', 'bgcolor'],
+    callback: ({ options }) => {
+      const look = runtimeOf()?.look(options.row, options.col);
+      return look ? styleOf(look) : {};
+    },
+  },
+});
+
+const FIXED_VARIABLES = {
+  viewed: { name: 'Viewed destination' },
+  current: { name: 'Current source of the viewed destination' },
+  staged: { name: 'Staged route count' },
+  error: { name: 'Last error' },
+  router: { name: 'Router status (up, down or unknown)' },
+};
+
+const variableDefinitionsOf = (squares) => {
+  const defs = { ...FIXED_VARIABLES };
+  for (const { r, c } of squares) defs[squareVariable(r, c)] = { name: `Text of row ${r} column ${c}` };
+  return defs;
+};
+
+// Style is a fallback; the look feedback recolours it and the text variable fills the label.
+const presetsOf = (cells, label) => {
+  const presets = {};
+  for (const cell of cells) {
+    const where = { row: cell.r, col: cell.c };
+    presets[`cell_${cell.r}_${cell.c}`] = {
+      type: 'simple',
+      name: `Row ${cell.r} column ${cell.c}: ${cell.kind}`,
+      style: { text: `$(${label}:${squareVariable(cell.r, cell.c)})`, size: 'auto', color: WHITE, bgcolor: COLOURS[cell.kind] ?? COLOURS.none },
+      steps: [{ down: [{ actionId: 'press', options: { ...where, event: 'down' } }], up: [{ actionId: 'press', options: { ...where, event: 'up' } }] }],
+      feedbacks: [{ feedbackId: 'look', options: where }],
+    };
+  }
+  return presets;
+};
+
+// host: the Companion calls the surface makes. label: the connection's label, which variable references use.
+export function createSurface({ runtime, host, label }) {
+  const shapeOf = () => JSON.stringify([runtime.grid(), runtime.cells()]);
+  let shape = null;
+  let hasPresets = false;
+  let sent = {};
+
+  return {
+    // Called on every runtime change, pulse steps included, so rebuilding is gated on the shape.
+    sync() {
+      const { code, text } = runtime.status();
+      host.updateStatus(code, text);
+      const now = shapeOf();
+      if (now !== shape) {
+        shape = now;
+        sent = {};
+        const cells = runtime.cells();
+        host.setVariableDefinitions(variableDefinitionsOf(runtime.squares()));
+        if (cells.length || hasPresets) {
+          hasPresets = cells.length > 0;
+          host.setPresetDefinitions([{ id: 'cells', name: 'Panel cells', definitions: cells.map((c) => `cell_${c.r}_${c.c}`) }], presetsOf(cells, label));
+        }
+      }
+      const values = runtime.variables();
+      const changed = Object.fromEntries(Object.entries(values).filter(([id, v]) => sent[id] !== v));
+      if (Object.keys(changed).length) host.setVariableValues(changed);
+      sent = values;
+      host.checkFeedbacks('look');
+    },
+  };
+}

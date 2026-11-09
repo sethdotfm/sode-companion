@@ -2,6 +2,7 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRuntime } from '../src/runtime.js';
 import { startFakeSode, panelOf, KEY } from './fake-sode.js';
+import { until } from './until.js';
 
 const open = [];
 afterEach(async () => {
@@ -23,21 +24,29 @@ const route = (dst, level, src) => ({ dst, level, src });
 const tallyFrom = (src) => ({ levels: [{ level: 1, label: '1' }], routes: [route(0, 1, src)] });
 
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
-async function until(fn, what, ms = 2000) {
-  const end = Date.now() + ms;
-  while (!fn()) {
-    if (Date.now() > end) assert.fail(`timed out waiting for ${what}`);
-    await sleep(5);
-  }
-}
 const tallyReads = (fake) => fake.requests.filter((q) => q.path === '/api/v1/tally').length;
+
+// The runtime stops polling tally once it has read the stream's hello, which the fake cannot signal.
+async function pollsStopped(fake) {
+  let last = -1;
+  let calm = 0;
+  await until(() => {
+    const n = tallyReads(fake);
+    calm = n === last ? calm + 1 : 0;
+    last = n;
+    return calm >= 10;
+  }, 'tally polling to stop');
+}
 
 async function connect(opts = {}, over = {}) {
   const fake = opts.fake || (await startFakeSode({ panel: panelOf(CELLS), tally: tallyFrom(0), stream: true, ...opts }));
   const rt = createRuntime({ host: '127.0.0.1', port: fake.port, panel: 'speedtest', key: KEY, device: 'Deck', pollMs: 15, retryMs: 20, ...over });
   open.push(() => rt.stop(), () => fake.close());
   await rt.start();
-  if (fake.streamEnabled) await until(() => fake.sockets.size > 0, 'the stream to open');
+  if (fake.streamEnabled) {
+    await until(() => fake.sockets.size > 0, 'the stream to open');
+    await pollsStopped(fake);
+  }
   return { rt, fake };
 }
 
@@ -45,7 +54,6 @@ test('a tally change pushed on the stream reaches a key without a poll', async (
   const { rt, fake } = await connect();
   await rt.press(...DST_A);
   assert.equal(rt.look(...SRC1).colour, 'source-current');
-  await sleep(60);
   const reads = tallyReads(fake);
   fake.push('tally', { routes: [route(0, 1, 1)] });
   await until(() => rt.look(...SRC2).colour === 'source-current', 'the pushed route');
@@ -62,8 +70,9 @@ test('names pushed on the stream rename the keys', async () => {
 
 test('dropping the stream switches to polling, and reconnecting stops it', async () => {
   const { rt, fake } = await connect();
-  await sleep(60);
-  assert.equal(tallyReads(fake), 1, 'polled while the stream was up');
+  const upReads = tallyReads(fake);
+  await sleep(100);
+  assert.equal(tallyReads(fake), upReads, 'polled while the stream was up');
   fake.streamEnabled = false;
   fake.dropStream();
   fake.tally = tallyFrom(1);
@@ -80,8 +89,7 @@ test('dropping the stream switches to polling, and reconnecting stops it', async
 
 test('with no stream, polling runs from the start', async () => {
   const { fake } = await connect({ stream: false });
-  await sleep(100);
-  assert.ok(tallyReads(fake) >= 3);
+  await until(() => tallyReads(fake) >= 3, 'three polled tally reads');
 });
 
 test('Sode going away shows Offline and ignores presses, then clears when it returns', async () => {
@@ -157,4 +165,31 @@ test('a network refused mid-run is reported as such and stops polling', async ()
   const n = fake.requests.length;
   await sleep(100);
   assert.equal(fake.requests.length, n);
+});
+
+test('a refusal on a slow read while the stream is up stops polling and says why', async () => {
+  const { rt, fake } = await connect();
+  fake.fail = { path: '/api/v1/protected', status: 401, code: 'invalid_key' };
+  await until(() => rt.status().code === 'key-refused', 'the refusal');
+  await sleep(150);
+  const n = fake.requests.length;
+  await sleep(100);
+  assert.equal(fake.requests.length, n);
+});
+
+test('an outage on a slow read while the stream is up shows Offline, and clears when it ends', async () => {
+  const { rt, fake } = await connect();
+  fake.fail = { path: '/api/v1/protected', status: 500, code: 'boom' };
+  await until(() => rt.status().code === 'offline', 'Offline');
+  fake.fail = null;
+  await until(() => rt.status().code === 'ok', 'recovery');
+});
+
+test('a key without the protected scope is not Offline', async () => {
+  const { rt, fake } = await connect();
+  fake.fail = { path: '/api/v1/protected', status: 403, code: 'scope_required' };
+  const reads = () => fake.requests.filter((q) => q.path === '/api/v1/protected').length;
+  const before = reads();
+  await until(() => reads() >= before + 2, 'two more protected reads');
+  assert.equal(rt.status().code, 'ok');
 });
