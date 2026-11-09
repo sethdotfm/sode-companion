@@ -1,0 +1,23 @@
+{
+  "name": "sode-panels",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "src/main.js",
+  "engines": {
+    "node": "^22.20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "sync-model": "sh scripts/sync-model.sh",
+    "link-dev": "sh scripts/link-dev.sh",
+    "package": "companion-module-build"
+  },
+  "dependencies": {
+    "@companion-module/base": "^2.2.2"
+  },
+  "devDependencies": {
+    "@companion-module/tools": "^3.2.0"
+  },
+  "license": "MIT"
+}
