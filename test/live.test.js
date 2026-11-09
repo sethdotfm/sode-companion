@@ -71,9 +71,10 @@ test('dropping the stream switches to polling, and reconnecting stops it', async
   await until(() => rt.look(...SRC2).colour === 'source-current', 'a polled tally');
   fake.streamEnabled = true;
   await until(() => fake.sockets.size > 0, 'the stream to reconnect');
-  await sleep(40);
+  // An in-flight poll may land just after the reconnect, so let it pass before counting.
+  await sleep(150);
   const reads = tallyReads(fake);
-  await sleep(80);
+  await sleep(100);
   assert.equal(tallyReads(fake), reads);
 });
 
@@ -142,7 +143,7 @@ test('a key refused mid-run stops all polling and says why', async () => {
   fake.dropStream();
   await until(() => rt.status().code === 'key-refused', 'the refusal');
   assert.match(rt.status().text, /refused the key/);
-  await sleep(40);
+  await sleep(150);
   const n = fake.requests.length + fake.upgrades.length;
   await sleep(100);
   assert.equal(fake.requests.length + fake.upgrades.length, n);
@@ -152,7 +153,7 @@ test('a network refused mid-run is reported as such and stops polling', async ()
   const { rt, fake } = await connect({ stream: false });
   fake.refuse = { status: 403, code: 'network_not_allowed' };
   await until(() => rt.status().code === 'network-refused', 'the refusal');
-  await sleep(40);
+  await sleep(150);
   const n = fake.requests.length;
   await sleep(100);
   assert.equal(fake.requests.length, n);

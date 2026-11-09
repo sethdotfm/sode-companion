@@ -6,6 +6,8 @@ import { createHold } from './hold.js';
 import { deviceName, startInstance } from './instance.js';
 import { COMPANION_GRID, visibleSquares } from './visible.js';
 import { createLivePanel } from './live-panel.js';
+import { createTiming } from './timing.js';
+import { flashWord } from './flash.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -43,7 +45,7 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, device = '', label = '', fetch: doFetch = globalThis.fetch, WebSocket: WS = globalThis.WebSocket, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, timers = { setTimeout, clearTimeout }, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -66,8 +68,19 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
   let sodeLost = false;
   let streamUp = false;
   let stream = null;
+  let flash = null; // { cell, at }: the Cell whose press set the error shown
+  let pressed = null; // the Cell of the press in progress
+  let seenError = null;
   const listeners = [];
-  const changed = () => listeners.forEach((fn) => fn());
+  const changed = () => {
+    if (st.error !== seenError) {
+      seenError = st.error;
+      if (st.error && pressed) flash = { cell: pressed, at: st.error.at };
+    }
+    timing.sync();
+    listeners.forEach((fn) => fn());
+  };
+  const timing = createTiming({ timers, now, read: () => st, write: (next) => (st = next), notify: changed });
 
   const set = (code, text = FAILS[code]) => {
     status = { code, text };
@@ -248,6 +261,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
         return { text, colour: s === 'idle' ? 'source' : `source-${s}`, pulse: s === 'pending' ? 1 : 0 };
       }
       case 'destination': {
+        const shown = model.resultShown(st, cell.n, now());
+        if (shown) return { text: `${text}\n${shown.word}`, colour: `result-${shown.result}`, pulse: 0 };
         const s = model.destinationState(st, cell.n);
         if (s === 'staged') return { text: `${text}\n${names.source(st.staged.find((x) => x.dst === cell.n).src)}`, colour: 'destination-staged', pulse: 1 };
         return { text, colour: s === 'idle' ? 'destination' : `destination-${s}`, pulse: 0 };
@@ -290,6 +305,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     } catch {
       st = model.failTake(st, 'unreachable', 'Sode did not answer the take', now());
     }
+    st = { ...st, touchedAt: now() };
     changed();
     if (!stopped) poll1();
   }
@@ -312,7 +328,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
   // Instant mode: the press that staged something is the Confirm. A refused press leaves an older failed route staged, so it must not resend.
   const confirmInstant = () => (st.error ? undefined : sendTake(model.startInstant(st, env, now())));
 
-  return {
+  const api = {
     async start() {
       if (!host || !port || !panelRef || !key) return set('bad-config');
       if (name === null) return set('bad-device');
@@ -321,6 +337,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
     },
     stop() {
       stopped = true;
+      timing.stop();
       clearTimeout(timer);
       clearTimeout(pollTimer);
       stream?.close();
@@ -389,8 +406,22 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, d
       if (!cell) return NONE;
       const root = cell.r === r && cell.c === c;
       if (status.code === 'offline') return { text: root ? 'Offline' : '', colour: 'offline', pulse: 0 };
-      const { colour, pulse, text, fill } = cellLook(cell);
-      return { text: root ? text : '', colour, pulse, ...(fill === undefined ? {} : { fill }) };
+      const err = model.errorOf(st, now());
+      const flashing = err && flash?.cell === cell && flash.at === err.at;
+      const { colour, pulse, text, fill } = flashing ? { colour: 'error', pulse: 0, text: flashWord(err) } : cellLook(cell);
+      return { text: root ? text : '', colour, pulse: pulse ? timing.phase() : 0, ...(fill === undefined ? {} : { fill }) };
     },
   };
+
+  // Errors a press raises flash on that press's key, so the pressed Cell is known while changed() runs.
+  const pressNow = api.press;
+  api.press = async (r, c) => {
+    pressed = cellAt(r, c);
+    try {
+      await pressNow(r, c);
+    } finally {
+      pressed = null;
+    }
+  };
+  return api;
 }

@@ -2,10 +2,10 @@
 import { InstanceBase, InstanceStatus } from '@companion-module/base';
 import { createRuntime } from './runtime.js';
 import { instanceStatusOf } from './companion-status.js';
+import { pulseLevel } from './timing.js';
 
 const WHITE = 0xffffff;
 // Muted idle colours per Cell kind. Source, Destination and press states come with the takes work.
-// Pulse phases come with their own slice; a pulsing look shows its solid colour for now.
 const COLOURS = {
   source: 0x1f3a5f,
   'source-current': 0x1f8f3f,
@@ -20,9 +20,19 @@ const COLOURS = {
   unavailable: 0x222222,
   clear: 0x444444,
   current: 0x1f5f5f,
+  'result-connected': 0x1f8f3f,
+  'result-already': 0x1f5f8f,
+  'result-failed': 0xd02a2a,
+  error: 0xd02a2a,
   none: 0x000000,
 };
 
+const scale = (rgb, f) => [16, 8, 0].reduce((out, sh) => out | (Math.round(((rgb >> sh) & 0xff) * f) << sh), 0);
+// A pulse phase dims the state colour; 0 is steady.
+const bgOf = ({ colour, pulse }) => {
+  const rgb = COLOURS[colour] ?? COLOURS.none;
+  return pulse ? scale(rgb, pulseLevel(pulse)) : rgb;
+};
 const blend = (a, b, t) => [16, 8, 0].reduce((out, s) => out | (Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t) << s), 0);
 
 class SodePanelsInstance extends InstanceBase {
@@ -70,7 +80,7 @@ class SodePanelsInstance extends InstanceBase {
           const look = this.runtime?.look(options.row, options.col);
           if (!look) return {};
           // A hold's fill is shown as the Take colour shifting to its armed colour; Companion has no partial fill for a button.
-          const bg = COLOURS[look.colour] ?? COLOURS.none;
+          const bg = bgOf(look);
           const bgcolor = look.fill === undefined ? bg : blend(bg, COLOURS['take-armed'], look.fill);
           return { text: look.text, color: WHITE, bgcolor };
         },
