@@ -1,6 +1,8 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
-import { cellsIn, namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
+import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
+import { COMPANION_GRID, visibleSquares } from './visible.js';
+import { createLivePanel } from './live-panel.js';
 
 // namesFrom has no label for a Take cell; its hold-guard wording belongs with the takes ticket.
 const labelOf = (cell, names) => (cell.kind === 'take' ? cell.caption || 'Take' : names.of(cell));
@@ -34,7 +36,7 @@ const NONE = { text: '', colour: 'none', pulse: 0 };
 // Protected and presets change rarely, so they are read on every Nth tally poll.
 const SLOW_EVERY = 5;
 
-export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, now = Date.now, log = () => {} }) {
+export function createRuntime({ host, port, tls = false, panel: panelRef, key, fetch: doFetch = globalThis.fetch, retryMs = 5000, pollMs = 2000, liveMs = 5000, grid = COMPANION_GRID, now = Date.now, log = () => {} }) {
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -43,6 +45,8 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
   let stopped = false;
   let timer = 0;
   let pollTimer = 0;
+  let liveTimer = 0;
+  let live = null;
   let polls = 0;
   let st = model.createState();
   let env = envFrom({}, {});
@@ -78,6 +82,30 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     if (!stopped && pollMs > 0) pollTimer = setTimeout(poll, pollMs);
   }
 
+  // Only Cells with a Root square inside the Companion grid are kept; the rest are ignored without an error.
+  const drawnOf = (p) => visibleSquares(p, grid).filter((s) => s.root).map((s) => s.cell);
+
+  // Applies a newer panel copy once the rules allow. The viewed destination is carried over.
+  function settle() {
+    const fresh = live?.due({ busy: st.busy, viewed: !!st.view, staged: st.staged.length > 0 }, now());
+    if (!fresh) return;
+    panel = fresh;
+    drawn = drawnOf(fresh);
+    st = model.carryView(model.createState(fresh.settings), st, drawn);
+    changed();
+  }
+
+  async function checkPanel() {
+    if (stopped) return;
+    try {
+      live.notice(await get(`panels/${encodeURIComponent(panelRef)}`), now());
+    } catch {
+      // A failed read leaves the panel as it is; the next check tries again.
+    }
+    settle();
+    if (!stopped) liveTimer = setTimeout(checkPanel, liveMs);
+  }
+
   const get = async (path) => {
     const res = await doFetch(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } });
     log(`GET ${path} ${res.status}`);
@@ -96,13 +124,16 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       if (stopped) return;
       panel = p;
       names = namesFrom(nm);
-      drawn = cellsIn(p).sort((a, b) => a.r - b.r || a.c - b.c);
+      drawn = drawnOf(p);
+      live = createLivePanel(p.rev);
       st = model.createState(p.settings);
       await readRouter(true);
       if (stopped) return;
       set('ok', `Panel ${p.name}`);
       clearTimeout(pollTimer);
       if (pollMs > 0) pollTimer = setTimeout(poll, pollMs);
+      clearTimeout(liveTimer);
+      if (liveMs > 0) liveTimer = setTimeout(checkPanel, liveMs);
     } catch (e) {
       if (stopped) return;
       // A refusal ends the attempts: only a changed key, list or panel helps. A lost connection is retried.
@@ -141,7 +172,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
     }
   }
 
-  const cellAt = (r, c) => drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
+  const cellAt = (r, c) => r <= grid.rows && c <= grid.cols && drawn.find((x) => r >= x.r && r < x.r + x.rs && c >= x.c && c < x.c + x.cs);
 
   async function sendTake() {
     const started = model.startTake(st, env, now());
@@ -177,6 +208,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
       stopped = true;
       clearTimeout(timer);
       clearTimeout(pollTimer);
+      clearTimeout(liveTimer);
     },
     release() {},
     async press(r, c) {
@@ -203,6 +235,7 @@ export function createRuntime({ host, port, tls = false, panel: panelRef, key, f
           return;
       }
       if (st !== before) changed();
+      settle();
     },
     variables() {
       const view = st.view;
