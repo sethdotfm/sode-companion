@@ -34,6 +34,14 @@ class SodePanelsInstance extends InstanceBase {
       { id: 'host', type: 'textinput', label: 'Sode host', width: 8, default: '' },
       { id: 'port', type: 'number', label: 'Port', width: 4, default: 8080, min: 1, max: 65535 },
       { id: 'tls', type: 'checkbox', label: 'Use TLS (https)', width: 4, default: false },
+      {
+        id: 'insecureTls',
+        type: 'checkbox',
+        label: 'Accept a self-signed certificate',
+        tooltip: 'Skips the certificate check for this connection, for a dev Sode that serves its own certificate. Use it only on a network you trust.',
+        width: 4,
+        default: false,
+      },
       { id: 'panel', type: 'textinput', label: 'Panel id or short name', width: 8, default: '' },
       { id: 'key', type: 'secret-text', label: 'Panel instance key', width: 12 },
       { id: 'device', type: 'textinput', label: 'Device name (blank uses the connection label)', width: 8, default: '' },
@@ -51,6 +59,9 @@ class SodePanelsInstance extends InstanceBase {
 
   #connect(config, secrets) {
     this.runtime?.stop();
+    // Node reads this at connect time. Each Companion connection runs in its own process, so it affects only this one.
+    if (config.insecureTls) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    else delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     const runtime = createRuntime({
       host: config.host,
       port: config.port,
