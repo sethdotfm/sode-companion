@@ -24,11 +24,18 @@ class SodePanelsInstance extends InstanceBase {
 
   getConfigFields() {
     return [
-      { id: 'host', type: 'textinput', label: 'Sode host', width: 8, default: '', minLength: 1 },
+      {
+        id: 'link',
+        type: 'secret-text',
+        label: 'Sode link (optional)',
+        tooltip: 'Paste the whole panel link from Sode. Its host, port, TLS, panel, key and instance name replace the fields below.',
+        width: 12,
+      },
+      { id: 'host', type: 'textinput', label: 'Sode host', width: 8, default: '' },
       { id: 'port', type: 'number', label: 'Port', width: 4, default: 8080, min: 1, max: 65535 },
       { id: 'tls', type: 'checkbox', label: 'Use TLS (https)', width: 4, default: false },
-      { id: 'panel', type: 'textinput', label: 'Panel id or short name', width: 8, default: '', minLength: 1 },
-      { id: 'key', type: 'secret-text', label: 'Panel instance key', width: 12, minLength: 1 },
+      { id: 'panel', type: 'textinput', label: 'Panel id or short name', width: 8, default: '' },
+      { id: 'key', type: 'secret-text', label: 'Panel instance key', width: 12 },
       { id: 'device', type: 'textinput', label: 'Device name (blank uses the connection label)', width: 8, default: '' },
       {
         id: 'takeMessages',
@@ -50,6 +57,7 @@ class SodePanelsInstance extends InstanceBase {
       tls: !!config.tls,
       panel: config.panel,
       key: secrets?.key,
+      link: secrets?.link,
       device: config.device,
       takeMessages: !!config.takeMessages,
       label: this.label,

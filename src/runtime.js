@@ -1,4 +1,5 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
+import { parseSodeLink } from './sodelink.js';
 import { randomUUID } from 'node:crypto';
 import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
@@ -24,6 +25,7 @@ const FAILS = {
   unreachable: 'Sode did not answer. Check the host, port and TLS choice.',
   offline: 'Sode or the router is not answering. Every key shows Offline until it does.',
   'bad-config': 'Set the host, port, panel and key in the connection settings.',
+  'bad-link': 'The Sode link is not an http or https link to a panel. Paste the whole link from Sode, or clear the field.',
   'bad-device': 'The device name is over 40 characters. Shorten it, or the connection label when the device name is blank.',
 };
 
@@ -59,12 +61,13 @@ const TICK_MS = 100;
 const SLOW_EVERY = 5;
 
 export function createRuntime({
-  host,
-  port,
-  tls = false,
-  panel: panelRef,
-  key: rawKey,
-  device = '',
+  host: hostOpt,
+  port: portOpt,
+  tls: tlsOpt = false,
+  panel: panelOpt,
+  key: keyOpt,
+  device: deviceOpt = '',
+  link = '',
   label = '',
   fetch: doFetch = globalThis.fetch,
   WebSocket: WS = globalThis.WebSocket,
@@ -77,7 +80,11 @@ export function createRuntime({
   timers = { setTimeout, clearTimeout },
   log = () => {},
 }) {
-  const key = fullKey(String(rawKey || '').trim());
+  // A pasted link replaces the separate fields; one that does not parse fails start().
+  const parsed = String(link || '').trim() ? parseSodeLink(link) : undefined;
+  const { host, port, tls, panel: panelRef, key: linkKey } = parsed ?? { host: hostOpt, port: portOpt, tls: tlsOpt, panel: panelOpt, key: keyOpt };
+  const device = parsed?.device || deviceOpt;
+  const key = fullKey(String(linkKey || '').trim());
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -501,6 +508,7 @@ export function createRuntime({
 
   const api = {
     async start() {
+      if (parsed === null) return set('bad-link');
       if (!host || !port || !panelRef || !key) return set('bad-config');
       if (name === null) return set('bad-device');
       set('connecting', 'Connecting');

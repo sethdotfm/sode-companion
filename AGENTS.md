@@ -28,6 +28,10 @@ Icon B is the Cell's `artB`, a glyph 0 to 16 or A to Z (`glyphOf` in `src/icons.
 
 Every generated button is the same: it reads its text, colour and picture variables from the module, so a Cell added later in Sode's editor appears without regenerating. The module's Presets list still covers only drawn Cells (`visibleSquares`).
 
+## Sode link
+
+The `link` config field (a secret, since the link carries the key in its fragment) holds a whole panel link. `parseSodeLink` in `src/sodelink.js` reads it, and `createRuntime` lets it replace host, port, tls, panel, key and device (`?instance=`) when set. A link that does not parse fails `start()` with `bad-link`. Host, panel and key fields have no `minLength`, so a link alone saves.
+
 ## Vendored panel model
 
 `src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js` and `panellink.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
