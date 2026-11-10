@@ -18,6 +18,12 @@ export const panelOf = (cells, extra = {}) => ({
   ...extra,
 });
 
+// A panel as Sode serves it since Pages: pages only, never cells. Each page is { id, name?, enabled?, cells }.
+export const pagedPanelOf = (pages, extra = {}) => {
+  const { cells: _cells, ...rest } = panelOf([], extra);
+  return { ...rest, pages: pages.map((p) => ({ enabled: true, ...p })) };
+};
+
 export const NAMES = {
   numberOffset: 1,
   sources: [

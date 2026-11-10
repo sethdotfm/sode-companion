@@ -16,10 +16,10 @@ export const squareInsetVariable = (r, c) => `${squareVariable(r, c)}_inset`;
 export const SIDES = ['bl', 'bt', 'br', 'bb'];
 export const squareSideVariable = (r, c, side) => `${squareVariable(r, c)}_${side}`;
 
-// Key squares of the panel's drawn Cells in row order; root is true on a Cell's top-left square only.
-export function visibleSquares(panel) {
+// Key squares of Page i's drawn Cells in row order; root is true on a Cell's top-left square only.
+export function visibleSquares(panel, i = 0) {
   const out = [];
-  for (const cell of drawnCells(panel)) {
+  for (const cell of drawnCells(panel, i)) {
     for (let r = cell.r; r < cell.r + cell.rs; r++) {
       for (let c = cell.c; c < cell.c + cell.cs; c++) {
         out.push({ r, c, cell, root: r === cell.r && c === cell.c });
@@ -29,9 +29,9 @@ export function visibleSquares(panel) {
   return out.sort((a, b) => a.r - b.r || a.c - b.c);
 }
 
-// Every key square of the panel in row order: the drawn ones from visibleSquares plus blank ones (cell null, root false).
-export function keySquares(panel) {
-  const drawn = new Map(visibleSquares(panel).map((sq) => [`${sq.r},${sq.c}`, sq]));
+// Every key square of Page i in row order: the drawn ones from visibleSquares plus blank ones (cell null, root false).
+export function keySquares(panel, i = 0) {
+  const drawn = new Map(visibleSquares(panel, i).map((sq) => [`${sq.r},${sq.c}`, sq]));
   const out = [];
   for (let r = 1; r <= (panel.rows || 0); r++) {
     for (let c = 1; c <= (panel.cols || 0); c++) {

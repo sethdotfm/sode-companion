@@ -86,6 +86,7 @@ const FIXED_VARIABLES = {
   staged: { name: 'Staged route count' },
   error: { name: 'Last error' },
   router: { name: 'Router status (up, down or unknown)' },
+  page: { name: 'Name of the Page shown (Page 1, 2, ... when unnamed)' },
 };
 
 const variableDefinitionsOf = (squares) => {

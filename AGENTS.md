@@ -2,7 +2,7 @@
 
 Notes for AI agents working in this repo. Only the non-obvious is here; code and git history hold the rest.
 
-A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, branch `integration/panels` while panels are alpha) and runs a panel on Companion surfaces such as a Stream Deck. Companion's module guide is https://companion.free/for-developers/module-development/. Sode's API is `/api/v1`, documented in `docs/api.md` in the Sode repo.
+A Bitfocus Companion connection module that signs in to Sode (sethdotfm/sode, branch `integration/overnight` while panels are alpha; it adds Pages on top of `integration/panels`) and runs a panel on Companion surfaces such as a Stream Deck. Companion's module guide is https://companion.free/for-developers/module-development/. Sode's API is `/api/v1`, documented in `docs/api.md` in the Sode repo.
 
 ## Layout and checks
 
@@ -34,12 +34,13 @@ The `link` config field (a secret, since the link carries the key in its fragmen
 
 ## Vendored panel model
 
-`src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js` and `panellink.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
+`src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js`, `panellink.js`, `panelnav.js`, `panelpages.js` and `pagecells.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
 
 `src/vendor/lucide/` is a copy of Sode's Lucide sprite (`web/vendor/patchbay/icons/lucide.svg`) wrapped as the JS string `sprite.js` so the packaging tool bundles it, with the ISC licence in `LICENSE-lucide`. Its `SOURCE` line holds the Sode commit, branch and Lucide version. Refresh it with `scripts/sync-icons.sh [sode checkout]`. `build-config.cjs` copies the licence into the package. `src/icons.js` resolves a Cell's `icon:<name>` art string.
 
 Other divergences from Sode's web page, kept in the runtime (`src/runtime.js`, `src/timing.js`), not the vendored model:
 
+- Pages: Sode serves `pages` and never `cells`. The runtime draws one Page, `state.page` (a Page id), and `visibleSquares` and `keySquares` take its index. The panel opens on its first enabled Page, since the module has no browser storage for Sode's remembered one. A newer saved panel keeps the Page shown unless it was disabled or deleted. Go to, Next and Previous Page cells change the Page without a Take's checks and work while offline; the view and staged routes carry over, since the plan is panel-wide. A greyed (no target) navigation key uses the `unavailable` colour. The `page` variable holds the shown Page's name. The Presets list and the artwork cache span every Page's cells, so a Page change fetches nothing, but the Presets list covers only the current Page's drawn Cells.
 - A newer saved copy of the panel applies at once, held only while a take is in flight, and drops the view and staged routes. Sode's page counts down 10 s first and carries the view over.
 - After a take the viewed destination stays viewed. Only Clear or a newly applied panel drops it. Sode's page has no idle clear (upstream removed it from the model), so neither has the module.
 - A double-press Take shows "Press\nTake\nagain" in `take-confirm` (amber) from the first press until the 1.5 s window lapses or the second press fires. The hold guard keeps the armed look and its fill.

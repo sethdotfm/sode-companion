@@ -2,6 +2,9 @@
 import { parseSodeLink } from './sodelink.js';
 import { randomUUID } from 'node:crypto';
 import { namesFrom, envFrom, errorText, currentLabel, nameCellText } from './vendor/panelrules.js';
+import { NAV_KINDS, landingPage, navTarget, navText, pageIndex, wrapOf } from './vendor/panelnav.js';
+import { pagesOf, pageLabel } from './vendor/panelpages.js';
+import { pageCellText } from './vendor/pagecells.js';
 import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
 import { deviceName, startInstance } from './instance.js';
@@ -266,22 +269,34 @@ export function createRuntime({
     changed();
   }
 
-  // Blank key squares get a variable and a look but no preset.
-  function usePanel(p) {
-    squares = keySquares(p);
-    drawn = visibleSquares(p)
+  // Blank key squares get a variable and a look but no preset. The picture cache keeps every Page's art, so a Page
+  // change fetches nothing.
+  function usePanel(p, page = state.page) {
+    const i = pageIndex(pagesOf(p), page);
+    squares = keySquares(p, i);
+    drawn = visibleSquares(p, i)
       .filter((s) => s.root)
       .map((s) => s.cell);
-    pictures.sync(p.id, drawn);
+    pictures.sync(
+      p.id,
+      pagesOf(p).flatMap((_, k) =>
+        visibleSquares(p, k)
+          .filter((s) => s.root)
+          .map((s) => s.cell),
+      ),
+    );
   }
+
+  // A new state on the first enabled Page, or on the Page the old state shows when it is still enabled.
+  const freshState = (p, page = '') => model.showPage(model.createState(p.settings), landingPage(pagesOf(p), page));
 
   function settle() {
     if (!newer || state.busy) return;
     panel = newer;
     newer = null;
     seenRev = panel.rev;
+    state = freshState(panel, state.page);
     usePanel(panel);
-    state = model.createState(panel.settings);
     changed();
   }
 
@@ -323,10 +338,10 @@ export function createRuntime({
       if (stopped) return;
       panel = p;
       names = namesFrom(fetchedNames);
+      state = freshState(p);
       usePanel(p);
       seenRev = p.rev;
       newer = null;
-      state = model.createState(p.settings);
       await Promise.all([readTally(), readSlow(), readStatus()]);
       if (stopped) return;
       sodeLost = false;
@@ -414,6 +429,18 @@ export function createRuntime({
         const t = nameCellText(cell, { panelName: panel.name, instance: name });
         return { text: t.caption ? `${t.caption}\n${t.value}` : t.value, colour: cell.kind, pulse: 0 };
       }
+      case 'pageName':
+      case 'info': {
+        const t = pageCellText(cell, { panelName: panel.name, instance: name, pages: pagesOf(panel), page: state.page });
+        return { text: [...(t.caption ? [t.caption] : []), ...t.lines].join('\n'), colour: cell.kind, pulse: 0 };
+      }
+      case 'goToPage':
+      case 'nextPage':
+      case 'previousPage': {
+        const pages = pagesOf(panel);
+        const greyed = navTarget(pages, state.page, cell, wrapOf(panel)) === null;
+        return { text: navText(cell, pages), colour: greyed ? 'unavailable' : cell.kind, pulse: 0 };
+      }
       default:
         return { text, colour: cell.kind, pulse: 0 };
     }
@@ -482,7 +509,18 @@ export function createRuntime({
   // Instant mode: the press that staged something is the Confirm. A refused press leaves an older failed route staged, so it must not resend.
   const confirmInstant = () => (state.error ? undefined : sendTake(model.startInstant(state, env, now())));
 
+  // A Page change sends nothing, so it works while Sode or the router is away, as on Sode's page.
+  function pressNav(cell) {
+    const next = model.pressPage(state, cell, pagesOf(panel), wrapOf(panel));
+    if (next === state) return;
+    state = next;
+    holdStop();
+    usePanel(panel);
+    changed();
+  }
+
   async function pressKey(cell) {
+    if (cell && NAV_KINDS.includes(cell.kind) && (status.code === 'ok' || status.code === 'offline')) return pressNav(cell);
     if (!cell || status.code !== 'ok') return;
     const before = state;
     switch (cell.kind) {
@@ -557,6 +595,8 @@ export function createRuntime({
         staged: state.staged.length,
         error: errorText(model.errorOf(state, now()), names),
         router: routerUp === null ? 'unknown' : routerUp ? 'up' : 'down',
+        page:
+          panel === NO_PANEL ? '' : pageLabel(pagesOf(panel)[pageIndex(pagesOf(panel), state.page)], pageIndex(pagesOf(panel), state.page)),
       };
     },
     onChange: (fn) => listeners.push(fn),
