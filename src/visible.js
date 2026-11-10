@@ -1,5 +1,5 @@
 // Which key squares of a panel a Companion page shows. Pure, no Node imports.
-import { cellsIn } from './vendor/panelrules.js';
+import { drawnCells } from './vendor/panelrules.js';
 
 // Companion's default page: 4 rows by 8 columns. Only the Generator and the pre-load placeholder keys use it.
 export const COMPANION_GRID = { rows: 4, cols: 8 };
@@ -19,7 +19,7 @@ export const squareSideVariable = (r, c, side) => `${squareVariable(r, c)}_${sid
 // Key squares of the panel's drawn Cells in row order; root is true on a Cell's top-left square only.
 export function visibleSquares(panel) {
   const out = [];
-  for (const cell of cellsIn(panel)) {
+  for (const cell of drawnCells(panel)) {
     for (let r = cell.r; r < cell.r + cell.rs; r++) {
       for (let c = cell.c; c < cell.c + cell.cs; c++) {
         out.push({ r, c, cell, root: r === cell.r && c === cell.c });

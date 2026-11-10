@@ -6,6 +6,7 @@ const WORDS = {
   'outside-rights': 'Rights',
   'no-preset': 'No preset',
   'preset-multi': 'One dest',
+  'preset-no-fixed': 'No route',
   refused: 'Refused',
 };
 

@@ -32,6 +32,23 @@ export function openFailText(status, hadKey) {
   return 'This panel could not be opened.';
 }
 
+// The note above a Session-mode panel for a session key step. A refused or ended key gets text, or the page stays blank.
+// retry shows the Sign in button; an ended module only a reload revives.
+export function sessionNote(step, err = '') {
+  switch (step) {
+    case 'sign-in':
+      return { text: 'Sign in with your PIN to open this panel.', retry: true };
+    case 'no-users':
+      return { text: 'This panel needs a user, and Sode has none.', retry: false };
+    case 'refused':
+      return { text: `Sode would not open this panel for this sign-in${err ? `: ${err}` : ''}. Sign in again.`, retry: true };
+    case 'ended':
+      return { text: "This page's sign-in key was ended. Reload the page to sign in again.", retry: false };
+    default:
+      return { text: '', retry: false };
+  }
+}
+
 // rights is the caller's own Rights from GET /panels/<id>: an unset list allows everything, an empty one nothing.
 // Keep in step with config.Rights and outsideRights (internal/app/rights.go).
 export const rightsAllow = (rights, list, v) => !Array.isArray(rights?.[list]) || rights[list].includes(v);
@@ -89,6 +106,23 @@ export function cellsIn(panel) {
   return out;
 }
 
+// The panel's fixed destinations (settings.fixedDests), [] when the setting is off. A list the server would refuse
+// (fixedList in internal/app/panelfixed.go) also reads as off, so a hand-edited file cannot break the page.
+export const FIXED_MAX = 16; // keep in step with panelFixedMax in internal/app/panelfixed.go
+const DST_MAX = 0xffff; // keep in step with dstNumberMax in internal/app/panelfixed.go
+export function fixedDestsOf(panel) {
+  const list = panel?.settings?.fixedDests;
+  const ok = Array.isArray(list) && list.length <= FIXED_MAX && list.every((n, i) => Number.isInteger(n) && n >= 0 && n <= DST_MAX && list.indexOf(n) === i);
+  return ok ? list : [];
+}
+
+// What the panel page draws. A panel with fixed destinations leaves its Destination cells out; they stay stored, so
+// the editor and the thumbnails keep using cellsIn.
+export const drawnCells = (panel) => {
+  const cells = cellsIn(panel);
+  return fixedDestsOf(panel).length ? cells.filter((c) => c.kind !== 'destination') : cells;
+};
+
 export function errorText(err, names) {
   switch (err?.code) {
     case 'no-destination':
@@ -103,6 +137,8 @@ export function errorText(err, names) {
     }
     case 'no-preset':
       return 'That preset is not available to this panel';
+    case 'preset-no-fixed':
+      return `${err.name} has no route to this panel's destinations`;
     case 'preset-multi':
       return 'This panel stages one destination at a time, and that preset has more';
     case 'refused':
