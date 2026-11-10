@@ -38,7 +38,8 @@ class SodePanelsInstance extends InstanceBase {
         id: 'insecureTls',
         type: 'checkbox',
         label: 'Accept a self-signed certificate',
-        tooltip: 'Skips the certificate check for this connection, for a dev Sode that serves its own certificate. Use it only on a network you trust.',
+        tooltip:
+          'Skips the certificate check for this connection, for a dev Sode that serves its own certificate. Use it only on a network you trust.',
         width: 4,
         default: false,
       },

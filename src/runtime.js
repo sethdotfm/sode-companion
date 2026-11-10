@@ -1,7 +1,7 @@
 // The panel runtime. Independent of Companion: the shell forwards config in and renders what comes out.
 import { parseSodeLink } from './sodelink.js';
 import { randomUUID } from 'node:crypto';
-import { namesFrom, envFrom, errorText, currentLabel } from './vendor/panelrules.js';
+import { namesFrom, envFrom, errorText, currentLabel, nameCellText } from './vendor/panelrules.js';
 import * as model from './vendor/panelmodel.js';
 import { openStream, mergeTally } from './live.js';
 import { deviceName, startInstance } from './instance.js';
@@ -82,7 +82,13 @@ export function createRuntime({
 }) {
   // A pasted link replaces the separate fields; one that does not parse fails start().
   const parsed = String(link || '').trim() ? parseSodeLink(link) : undefined;
-  const { host, port, tls, panel: panelRef, key: linkKey } = parsed ?? { host: hostOpt, port: portOpt, tls: tlsOpt, panel: panelOpt, key: keyOpt };
+  const {
+    host,
+    port,
+    tls,
+    panel: panelRef,
+    key: linkKey,
+  } = parsed ?? { host: hostOpt, port: portOpt, tls: tlsOpt, panel: panelOpt, key: keyOpt };
   const device = parsed?.device || deviceOpt;
   const key = fullKey(String(linkKey || '').trim());
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
@@ -401,6 +407,12 @@ export function createRuntime({
           colour: 'current',
           pulse: 0,
         };
+      }
+      case 'panelName':
+      case 'instanceName': {
+        // The instance is the device name this connection holds with Sode.
+        const t = nameCellText(cell, { panelName: panel.name, instance: name });
+        return { text: t.caption ? `${t.caption}\n${t.value}` : t.value, colour: cell.kind, pulse: 0 };
       }
       default:
         return { text, colour: cell.kind, pulse: 0 };

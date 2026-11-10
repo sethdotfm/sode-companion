@@ -29,6 +29,8 @@ export const COLOURS = {
   unavailable: CONTROL,
   clear: HOVER,
   current: CONTROL,
+  panelName: CONTROL,
+  instanceName: CONTROL,
   'result-connected': GREEN,
   'result-already': GREY,
   'result-failed': RED,
