@@ -27,7 +27,9 @@ const FAILS = {
   'api-off': 'The API is switched off in Sode. Ask an administrator to turn it on.',
   unreachable: 'Sode did not answer. Check the host, port and TLS choice.',
   offline: 'Sode or the router is not answering. Every key shows Offline until it does.',
-  'bad-config': 'Set the host, port, panel and key in the connection settings.',
+  'not-public':
+    'This panel is not Public, or Sode will not give this network a key. Paste its link with the key, or make the panel Public.',
+  'bad-config': 'Set the host, port and panel in the connection settings. A panel that is not Public also needs a key.',
   'bad-link': 'The Sode link is not an http or https link to a panel. Paste the whole link from Sode, or clear the field.',
   'bad-device': 'The device name is over 40 characters. Shorten it, or the connection label when the device name is blank.',
 };
@@ -93,7 +95,10 @@ export function createRuntime({
     key: linkKey,
   } = parsed ?? { host: hostOpt, port: portOpt, tls: tlsOpt, panel: panelOpt, key: keyOpt };
   const device = parsed?.device || deviceOpt;
-  const key = fullKey(String(linkKey || '').trim());
+  // No key means a Public panel: Sode hands out a 15 minute key on request, and the module asks again when it ends.
+  let key = fullKey(String(linkKey || '').trim());
+  const keyless = !key;
+  let renewing = null;
   const base = `${tls ? 'https' : 'http'}://${host}:${port}/api/v1`;
   let status = { code: 'connecting', text: 'Connecting' };
   let panel = NO_PANEL;
@@ -314,9 +319,46 @@ export function createRuntime({
     if (!dead()) wake('live', liveMs, checkPanel);
   }
 
+  // Sode answers 201 with a key for a Public panel, and 200 {public:false} for anything else. Any other answer throws.
+  async function askPublic() {
+    const res = await doFetch(`${base}/panels/${encodeURIComponent(panelRef)}/public`, { method: 'POST' });
+    log(`POST panels/public ${res.status}`);
+    if (res.status === 200) return '';
+    if (res.status !== 201) throw new Refused('unreachable', res.status);
+    return (await res.json().catch(() => ({}))).key || '';
+  }
+
+  // Calls that end together share one ask, and a call that went out with an old key just takes the new one.
+  async function renewKey(used) {
+    if (key !== used) return true;
+    renewing ??= askPublic()
+      .catch(() => '')
+      .finally(() => (renewing = null));
+    const next = await renewing;
+    if (next && key === used) key = next;
+    return !!next;
+  }
+
+  const endedKey = async (res) => {
+    const code = (
+      await res
+        .clone()
+        .json()
+        .catch(() => ({}))
+    )?.error?.code;
+    return code === 'key_expired' || code === 'key_revoked';
+  };
+
   async function request(path, { method = 'GET', headers, body } = {}) {
-    const res = await doFetch(`${base}/${path}`, { method, headers: { Authorization: `Bearer ${key}`, ...headers }, body });
+    const send = (used) => doFetch(`${base}/${path}`, { method, headers: { Authorization: `Bearer ${used}`, ...headers }, body });
+    const used = key;
+    let res = await send(used);
     log(`${method} ${path} ${res.status}`);
+    // Only a key Sode handed out is renewed. A 401 is sent before the call runs, so a Take is safe to repeat.
+    if (keyless && res.status === 401 && (await endedKey(res)) && (await renewKey(used))) {
+      res = await send(key);
+      log(`${method} ${path} ${res.status}`);
+    }
     return res;
   }
 
@@ -332,8 +374,9 @@ export function createRuntime({
   async function load() {
     unwake('load');
     try {
+      if (keyless && !key && !(await renewKey(key))) throw new Refused('not-public');
       const p = await get(`panels/${encodeURIComponent(panelRef)}`);
-      if (p.acts !== 'api' && p.acts !== 'both') throw new Refused('session-mode');
+      if (p.acts !== 'api' && p.acts !== 'both' && p.acts !== 'public') throw new Refused('session-mode');
       const fetchedNames = await get('names');
       if (stopped) return;
       panel = p;
@@ -345,12 +388,12 @@ export function createRuntime({
       await Promise.all([readTally(), readSlow(), readStatus()]);
       if (stopped) return;
       sodeLost = false;
-      stopInstance ??= startInstance({ base, panelId: p.id, key, device: name, fetch: doFetch, retryMs, log });
+      stopInstance ??= startInstance({ base, panelId: p.id, key: () => key, device: name, fetch: doFetch, retryMs, log });
       set('ok', `Panel ${p.name}`);
       syncOffline();
       stream ||= openStream({
         base,
-        key,
+        key: () => key,
         topics: ['names', 'tally', ...(noStatusScope ? [] : ['status'])],
         WebSocket: WS,
         retryMs,
@@ -559,7 +602,7 @@ export function createRuntime({
   const api = {
     async start() {
       if (parsed === null) return set('bad-link');
-      if (!host || !port || !panelRef || !key) return set('bad-config');
+      if (!host || !port || !panelRef) return set('bad-config');
       if (name === null) return set('bad-device');
       set('connecting', 'Connecting');
       await load();

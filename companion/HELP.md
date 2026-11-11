@@ -7,6 +7,7 @@ Runs one Sode panel on Companion buttons. Pressing a button does what pressing t
 1. **Turn on the API in Sode.** The API is off until an administrator enables it in Sode's settings.
 2. **Make the panel act as its own API client.** In the Sode panel editor, switch the panel from acting as a user to acting as its own API client. A panel that acts as a user is refused, and the connection status says so.
 3. **Make an instance key.** Create it on the panel's API client. Sode shows the key once, so copy it then. Sode links show the key without the `sode_` prefix. The module adds the prefix when it is missing, so paste either form.
+   For a **Public** panel (Sode 1.8.3 and later, Authentication mode Public) skip step 3 and leave the key blank. The module asks Sode for a 15 minute key and asks again when it ends, as Sode's web page does. A blank key on a panel that is not Public fails with a status that says so.
 4. **Add the Connection in Companion.** Add a "Sode panels" connection and paste the panel's whole link from Sode into "Sode link", which fills in the host, port, TLS, panel, key and device name and replaces those fields while it is set. Or fill in the Sode host, port, TLS choice, the panel's id or short name, the instance key and, if you want a name other than the connection's label, the device name. Sode shows the device name as the instance name. The status turns Ok once the panel loads.
 5. **Run the Generator and import the page.** In a checkout of this repository, run `npm run generate -- --rows 4 --cols 8 --label <connection label> --connection-id <id> --out page.companionconfig`. It writes a `.companionconfig` file without contacting Sode and without a key. Import that file in Companion as a page. Every button is bound to the connection and presses its own row and column, so the page fits any panel that is no larger than the grid. Rows and columns default to 4 and 8 and go up to 32. `--host`, `--port` and `--tls` fill in the connection's config.
 
@@ -29,4 +30,4 @@ Variables hold the viewed destination, its current source, the staged count, the
 - One panel per connection. Use two connections, with two device names, for two independent surfaces.
 - No paging. Generate a page at least as large as the panel: a panel key square past the page's size has no button.
 - Needs Companion 5.1 or later.
-- Only a panel's API client instance key works. User keys and panels that act as a user are not supported.
+- Only a panel's API client instance key, or no key on a Public panel, works. User keys and panels that act as a user are not supported.

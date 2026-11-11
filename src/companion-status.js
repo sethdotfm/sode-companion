@@ -9,6 +9,7 @@ const MAP = {
   'network-refused': InstanceStatus.InsufficientPermissions,
   'session-mode': InstanceStatus.BadConfig,
   'panel-not-found': InstanceStatus.BadConfig,
+  'not-public': InstanceStatus.BadConfig,
   'bad-config': InstanceStatus.BadConfig,
   'bad-link': InstanceStatus.BadConfig,
   'bad-device': InstanceStatus.BadConfig,

@@ -53,6 +53,7 @@ const wsFrame = (text) => {
 // opts.stream = true serves GET /stream as a WebSocket. Off by default, so the upgrade answers 404 and the runtime polls.
 // fake.streamEnabled turns it off and on later; fake.push(t, data) sends a delta frame; fake.dropStream() closes every socket.
 // fake.artwork maps an art id to { type, bytes }; GET /panels/{id}/artwork/{art} serves it and an unknown id is 404.
+// A panel with acts 'public' answers POST /panels/{id}/public with keys sode_pub.1, sode_pub.2 and so on; fake.endedKeys holds keys that answer 401 key_expired.
 // fake.pushRaw(frame) sends any frame as is, for frames push() would not build.
 // fake.fail = { path, status, code } answers that one path with an error. fake.noStatusScope makes /status and the status topic 403 scope. fake.upgrades records each upgrade attempt.
 export async function startFakeSode(opts = {}) {
@@ -62,6 +63,8 @@ export async function startFakeSode(opts = {}) {
     refuse: opts.refuse || null,
     fail: null,
     requests: [],
+    publicIssued: 0,
+    endedKeys: new Set(),
     artwork: opts.artwork || {},
     // keepalives: parsed bodies of POST /panels/{id}/instances. streams: one per held instances stream, end() drops it.
     keepalives: [],
@@ -90,6 +93,19 @@ export async function startFakeSode(opts = {}) {
     res.on('error', () => {});
     const path = new URL(req.url, 'http://x').pathname;
     fake.requests.push({ method: req.method, path, auth: req.headers.authorization || '', url: req.url });
+    // A key in endedKeys answers 401 key_expired, as a Public key does after 15 minutes.
+    const auth = req.headers.authorization || '';
+    const pub = /^\/api\/v1\/panels\/([^/]+)\/public$/.exec(path);
+    if (pub && req.method === 'POST') {
+      if (fake.panel?.acts !== 'public' || (pub[1] !== fake.panel.id && pub[1] !== fake.panel.slug)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end('{"public":false}');
+      }
+      const key = `sode_pub.${++fake.publicIssued}`;
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ public: true, key, expires: 'later', panel: fake.panel.id }));
+    }
+    if (fake.endedKeys.has(auth.replace(/^Bearer /, ''))) return apiError(res, 401, 'key_expired');
     if (fake.refuse) return apiError(res, fake.refuse.status, fake.refuse.code);
     if (fake.fail && path === fake.fail.path) return apiError(res, fake.fail.status, fake.fail.code);
     const json = (body) => {

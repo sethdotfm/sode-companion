@@ -44,7 +44,7 @@ class SodePanelsInstance extends InstanceBase {
         default: false,
       },
       { id: 'panel', type: 'textinput', label: 'Panel id or short name', width: 8, default: '' },
-      { id: 'key', type: 'secret-text', label: 'Panel instance key', width: 12 },
+      { id: 'key', type: 'secret-text', label: 'Panel instance key (blank for a Public panel)', width: 12 },
       { id: 'device', type: 'textinput', label: 'Device name (blank uses the connection label)', width: 8, default: '' },
       {
         id: 'takeMessages',

@@ -2,6 +2,7 @@
 
 // Node's WebSocket takes a non-standard headers option, which the Bearer header needs; a browser cannot set it.
 // The key goes in that header only, never the URL.
+// key may be a function, so a renewed key reaches the next reconnect.
 export function openStream({ base, key, topics, WebSocket: WS = globalThis.WebSocket, retryMs, onUp, onDown, onFrame }) {
   const url = `${base.replace(/^http/, 'ws')}/stream?topics=${topics.join(',')}`;
   let ws = null;
@@ -12,7 +13,7 @@ export function openStream({ base, key, topics, WebSocket: WS = globalThis.WebSo
   const connect = () => {
     let sock;
     try {
-      sock = new WS(url, { headers: { Authorization: `Bearer ${key}` } });
+      sock = new WS(url, { headers: { Authorization: `Bearer ${typeof key === 'function' ? key() : key}` } });
     } catch {
       return retry();
     }

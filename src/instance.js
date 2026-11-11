@@ -10,17 +10,17 @@ export function deviceName(device, label) {
   return name.length <= MAX_DEVICE ? name : null;
 }
 
-// Never throws and never logs the key. Returns stop().
+// key may be a function, so a renewed key reaches the next call. Never throws and never logs the key. Returns stop().
 export function startInstance({ base, panelId, key, device, fetch: doFetch, retryMs, log }) {
   const url = `${base}/panels/${encodeURIComponent(panelId)}/instances`;
-  const headers = { Authorization: `Bearer ${key}` };
+  const headers = () => ({ Authorization: `Bearer ${typeof key === 'function' ? key() : key}` });
   const abort = new AbortController();
   let retry = 0;
 
   const keepalive = () =>
     doFetch(url, {
       method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers: { ...headers(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ device }),
       signal: abort.signal,
     })
@@ -29,7 +29,7 @@ export function startInstance({ base, panelId, key, device, fetch: doFetch, retr
 
   async function hold() {
     try {
-      const res = await doFetch(`${url}/stream?device=${encodeURIComponent(device)}`, { headers, signal: abort.signal });
+      const res = await doFetch(`${url}/stream?device=${encodeURIComponent(device)}`, { headers: headers(), signal: abort.signal });
       log(`GET instances/stream ${res.status}`);
       // The held body only matters for how long it stays open.
       if (res.ok && res.body) for await (const _chunk of res.body);

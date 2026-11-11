@@ -11,6 +11,7 @@ Companion's help text for the module is in [companion/HELP.md](companion/HELP.md
 1. **Turn on the API in Sode.** The API is off until an administrator enables it in Sode's settings.
 2. **Make the panel act as its own API client.** In the Sode panel editor, switch the panel from acting as a user to acting as its own API client. The module refuses a panel that acts as a user.
 3. **Make an instance key.** Create it on the panel's API client. Sode shows the key once. Sode links show it without the `sode_` prefix, and the module adds the prefix if it is missing, so either form works.
+   For a Public panel (Sode 1.8.3 and later) skip step 3 and leave the key blank. The module asks Sode for a 15 minute key and renews it.
 4. **Add the Connection in Companion.** Install the package (see below), add a "Sode panels" connection, and fill in the host, port, TLS choice, panel id or short name, instance key and optional device name. The device name is the instance name Sode shows and defaults to the connection's label.
 5. **Run the Generator and import the page.** Run:
 

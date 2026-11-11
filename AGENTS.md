@@ -32,6 +32,8 @@ Every generated button is the same: it reads its text, colour and picture variab
 
 The `link` config field (a secret, since the link carries the key in its fragment) holds a whole panel link. `parseSodeLink` in `src/sodelink.js` reads it, and `createRuntime` lets it replace host, port, tls, panel, key and device (`?instance=`) when set. A link that does not parse fails `start()` with `bad-link`. Host, panel and key fields have no `minLength`, so a link alone saves.
 
+A blank key means a Public panel (`acts: public`, Sode 1.8.3). `createRuntime` asks `POST /panels/{id}/public` (no auth) for a key that ends in 15 minutes, and `request` asks again on 401 `key_expired` or `key_revoked`, then repeats the call once (`renewKey` shares one ask between calls). `openStream` and `startInstance` take the key as a function so a reconnect uses the new one. A 200 `{public:false}` fails `start()` with `not-public`. A key given on a Public panel is used as is and nothing is asked.
+
 ## Vendored panel model
 
 `src/vendor/` is a copy of Sode's `web/panelmodel.js`, `panelrules.js`, `panellink.js`, `panelnav.js`, `panelpages.js` and `pagecells.js`. `src/vendor/SOURCE` holds the Sode commit and branch it came from. Refresh it with `scripts/sync-model.sh [sode checkout]`, and keep it in step with Sode while panels are alpha. Do not edit the copies by hand.
