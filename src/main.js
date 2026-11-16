@@ -4,6 +4,15 @@ import { createRuntime } from './runtime.js';
 import { instanceStatusOf } from './companion-status.js';
 import { createSurface, actionDefinitions, feedbackDefinitions } from './surface.js';
 
+// Keep in step with templates/, which test/template.test.js checks against the Generator.
+const TEMPLATE_BASE = 'https://github.com/sethdotfm/sode-companion/raw/main/templates';
+export const TEMPLATES = [
+  { file: 'sode-4x8.companionconfig', rows: 4, cols: 8, text: 'Download the 4x8 button page' },
+  { file: 'sode-2x16.companionconfig', rows: 2, cols: 16, text: 'Download the 2x16 button page (Stream Deck Studio)' },
+];
+export const GENERATOR_URL = 'https://sethdotfm.github.io/sode-companion/generator/';
+const templateLinks = TEMPLATES.map((t) => `<a href="${TEMPLATE_BASE}/${t.file}" target="_blank" rel="noreferrer">${t.text}</a>`);
+
 class SodePanelsInstance extends InstanceBase {
   runtime = null;
 
@@ -24,6 +33,13 @@ class SodePanelsInstance extends InstanceBase {
 
   getConfigFields() {
     return [
+      {
+        id: 'template',
+        type: 'static-text',
+        label: 'Button page',
+        value: `${templateLinks.join(' or ')}, then import it in Companion and pick this connection when it asks. For another size, <a href="${GENERATOR_URL}" target="_blank" rel="noreferrer">make your own in the browser</a>.`,
+        width: 12,
+      },
       {
         id: 'link',
         type: 'secret-text',

@@ -19,7 +19,9 @@ Companion's help text for the module is in [companion/HELP.md](companion/HELP.md
    npm run generate -- --rows 4 --cols 8 --label <connection label> --connection-id <id> --out page.companionconfig
    ```
 
-   `--rows` and `--cols` default to 4 and 8 (Companion's default page) and go up to 32. `--host`, `--port` and `--tls` fill in the connection's config. Import the file in Companion as a page. Every square is the same universal button that presses its own row and column, so one page fits any panel up to that size. The Generator reads nothing from Sode, needs no key and makes no network call. The same input writes the same bytes.
+   `--rows` and `--cols` default to 4 and 8 (Companion's default page) and go up to 32. `--host`, `--port` and `--tls` fill in the connection's config. Import the file in Companion as a page. For a 4 by 8 page, or a 2 by 16 page for the Stream Deck Studio, you can skip the Generator: [templates/sode-4x8.companionconfig](templates/sode-4x8.companionconfig) and [templates/sode-2x16.companionconfig](templates/sode-2x16.companionconfig) are pre-generated files, linked from the connection's edit page.
+
+   For any other size, open the in-browser generator ([docs/generator/index.html](docs/generator/index.html), published at https://sethdotfm.github.io/sode-companion/generator/ once GitHub Pages serves `docs/`). It writes the same page as `npm run generate`, bound to a placeholder connection, and runs entirely in the tab. After changing the Generator or the module version, run `npm run build-web`; a test fails when the bundle is stale. Companion asks which connection to bind it to on import. Every square is the same universal button that presses its own row and column, so one page fits any panel up to that size. The Generator reads nothing from Sode, needs no key and makes no network call. The same input writes the same bytes.
 
 ## Key hygiene
 

@@ -17,7 +17,8 @@
     "sync-model": "sh scripts/sync-model.sh",
     "sync-icons": "sh scripts/sync-icons.sh",
     "link-dev": "sh scripts/link-dev.sh",
-    "generate": "node scripts/generate.js"
+    "generate": "node scripts/generate.js",
+    "build-web": "node scripts/build-web.js"
   },
   "dependencies": {
     "@companion-module/base": "^2.2.2",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@companion-module/tools": "^3.2.0",
+    "esbuild": "0.28.2",
     "globals": "^17.14.0",
     "yaml": "^2.9.1"
   },

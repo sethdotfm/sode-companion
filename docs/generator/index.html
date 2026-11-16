@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sode button page generator</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 34rem; margin: 2rem auto; padding: 0 1rem; }
+  label { display: block; margin: 1rem 0 .25rem; }
+  input { font: inherit; width: 6rem; padding: .25rem .5rem; }
+  button { font: inherit; margin-top: 1.25rem; padding: .4rem 1rem; }
+  #error { color: #c00; min-height: 1.5rem; }
+</style>
+</head>
+<body>
+<h1>Sode button page generator</h1>
+<p>Makes a Companion page of universal buttons for the Sode panels module. Everything runs in this browser tab. Nothing is sent anywhere and no key is needed.</p>
+<form id="form">
+  <label for="rows">Rows</label>
+  <input id="rows" type="number" min="1" max="32" value="4" required>
+  <label for="cols">Columns</label>
+  <input id="cols" type="number" min="1" max="32" value="8" required>
+  <div><button type="submit">Download page</button></div>
+  <p id="error" role="alert"></p>
+</form>
+<p>In Companion, import the downloaded file as a page. Companion asks which connection to bind it to.</p>
+<script src="generator.js"></script>
+</body>
+</html>
